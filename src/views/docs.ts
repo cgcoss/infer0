@@ -15,6 +15,8 @@ export function DocsView({ user }: DocsViewProps) {
         <p>
           infer0 lets your app offer BYO-provider AI inference via OAuth 2.0. Each of your end users
           connects their own provider account (OpenAI, Anthropic, etc.), and you call a single API.
+          You can also use infer0 as a login provider — the same OAuth flow gives you the user's
+          profile via the userinfo endpoint.
         </p>
 
         <h2>How it works</h2>
@@ -36,7 +38,7 @@ export function DocsView({ user }: DocsViewProps) {
           <span class="flow-arrow">→</span>
           <div class="flow-step">
             <div class="num">4</div>
-            <p>Call infer0 with<br />the access token</p>
+            <p>Call infer0 for inference<br />or user info (SSO)</p>
           </div>
         </div>
 
@@ -62,7 +64,7 @@ grant_type=authorization_code
   &client_id=&lt;client_id&gt;
   &client_secret=&lt;client_secret&gt;
   &redirect_uri=&lt;callback_url&gt;</code></pre>
-        <p>Returns <code>access_token</code> (1 hour) and <code>refresh_token</code> (30 days).</p>
+          <p>Returns <code>access_token</code> (1 hour) and <code>refresh_token</code> (30 days). The access token can be used for both inference <em>and</em> identifying the user.</p>
 
         <h2>4. Inference</h2>
 
@@ -89,6 +91,23 @@ const chat = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello" }],
 });</code></pre>
         </div>
+
+        <h2>Login / SSO (optional)</h2>
+        <p>The access token also acts as an identity token. Call the userinfo endpoint to get the user's profile:</p>
+
+        <div class="endpoint">
+          <h3><span class="method get">GET</span><span class="path">/v1/userinfo</span></h3>
+          <pre><code>curl https://infer0.com/v1/userinfo \\
+  -H "Authorization: Bearer &lt;access_token&gt;"
+
+{
+  "sub": "user-uuid",
+  "email": "user@example.com",
+  "name": "User Name",
+  "picture": "https://..."
+}</code></pre>
+        </div>
+        <p>Use this to look up or create a user in your own database when they sign in with infer0. You only need the OAuth access token — no extra API keys required.</p>
 
         <h2>Refreshing the access token</h2>
         <pre><code>POST https://infer0.com/v1/oauth/refresh

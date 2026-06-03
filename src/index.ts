@@ -6,6 +6,7 @@ import { authRoutes } from "./routes/page-auth";
 import { providerRoutes } from "./routes/api-providers";
 import { inferenceRoutes } from "./routes/api-inference";
 import { authorizedAppRoutes } from "./routes/api-authorized-apps";
+import { userinfoRoutes } from "./routes/api-userinfo";
 import { oauthRoutes } from "./routes/oauth";
 import { providerPageRoutes } from "./routes/page-providers";
 import { servicePageRoutes } from "./routes/page-services";
@@ -103,5 +104,6 @@ app.route("/", authorizedAppRoutes);
 app.route("/", oauthRoutes);
 app.route("/", providerPageRoutes);
 app.route("/", servicePageRoutes);
+app.route("/", userinfoRoutes);
 
 export default app;
