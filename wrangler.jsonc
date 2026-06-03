@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "infer0",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-03-03",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "infer0-db",
+      "database_id": "2a675e0f-17aa-465d-a1a5-eb1420157f46",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "ACCOUNT_ID": "1c43cf36c63d9acea273e15a9949e2be",
+    "APP_URL": "https://infer0.cgcoss.workers.dev",
+    "AI_GATEWAY_URL": "https://gateway.ai.cloudflare.com/v1"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

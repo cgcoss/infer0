@@ -1,0 +1,205 @@
+import { Hono } from "hono";
+import type { Env } from "../types";
+import { requireAuth } from "../middleware/session";
+import { encrypt, decrypt } from "../lib/crypto";
+
+export const providerRoutes = new Hono<{ Bindings: Env }>();
+
+// List providers (API)
+providerRoutes.get("/v1/providers", requireAuth, async (c) => {
+  const user = c.get("user");
+
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, provider, model, name, is_default, created_at, updated_at FROM provider_configs WHERE user_id = ? ORDER BY created_at DESC",
+  )
+    .bind(user.id)
+    .all();
+
+  return c.json({ providers: results });
+});
+
+// Create provider (from dashboard form or API)
+providerRoutes.post("/v1/providers", requireAuth, async (c) => {
+  const user = c.get("user");
+  const contentType = c.req.header("Content-Type") ?? "";
+  let provider: string;
+  let model: string;
+  let name: string;
+  let apiKey: string;
+  let isDefault: number;
+
+  if (contentType.includes("application/json")) {
+    const body = await c.req.json<{
+      provider: string;
+      model?: string;
+      name?: string;
+      api_key: string;
+      is_default?: boolean;
+    }>();
+    provider = body.provider;
+    model = body.model ?? "";
+    name = body.name ?? "";
+    apiKey = body.api_key;
+    isDefault = body.is_default ? 1 : 0;
+  } else {
+    const body = await c.req.parseBody();
+    provider = body.provider as string;
+    model = (body.model as string) || "";
+    name = (body.name as string) || "";
+    apiKey = body.api_key as string;
+    isDefault = body.is_default === "1" ? 1 : 0;
+  }
+
+  if (!provider || !apiKey) {
+    return c.json({ error: { message: "Provider and API key required", code: "validation_error" } }, 400);
+  }
+
+  const encrypted = await encrypt(apiKey, c.env.ENCRYPTION_KEY);
+
+  if (isDefault) {
+    await c.env.DB.prepare(
+      "UPDATE provider_configs SET is_default = 0 WHERE user_id = ?",
+    )
+      .bind(user.id)
+      .run();
+  }
+
+  const id = crypto.randomUUID();
+  const label = name || `${provider}${model ? " " + model : ""}`;
+  await c.env.DB.prepare(
+    "INSERT INTO provider_configs (id, user_id, provider, model, name, api_key_encrypted, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)",
+  )
+    .bind(id, user.id, provider, model, label, encrypted, isDefault)
+    .run();
+
+  const redirect = (body.redirect as string) || "/dashboard";
+  return c.redirect(redirect);
+});
+
+// Update provider
+providerRoutes.put("/v1/providers/:id", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const body = await c.req.json<{
+    provider?: string;
+    model?: string;
+    name?: string;
+    api_key?: string;
+    is_default?: boolean;
+  }>();
+
+  const existing = await c.env.DB.prepare(
+    "SELECT * FROM provider_configs WHERE id = ? AND user_id = ?",
+  )
+    .bind(id, user.id)
+    .first();
+
+  if (!existing) {
+    return c.json({ error: { message: "Provider not found", code: "not_found" } }, 404);
+  }
+
+  if (body.provider) {
+    await c.env.DB.prepare("UPDATE provider_configs SET provider = ? WHERE id = ?")
+      .bind(body.provider, id)
+      .run();
+  }
+
+  if (body.model !== undefined) {
+    await c.env.DB.prepare("UPDATE provider_configs SET model = ? WHERE id = ?")
+      .bind(body.model, id)
+      .run();
+  }
+
+  if (body.name !== undefined) {
+    await c.env.DB.prepare("UPDATE provider_configs SET name = ? WHERE id = ?")
+      .bind(body.name, id)
+      .run();
+  }
+
+  if (body.api_key) {
+    const encrypted = await encrypt(body.api_key, c.env.ENCRYPTION_KEY);
+    await c.env.DB.prepare("UPDATE provider_configs SET api_key_encrypted = ? WHERE id = ?")
+      .bind(encrypted, id)
+      .run();
+  }
+
+  if (body.is_default !== undefined) {
+    if (body.is_default) {
+      await c.env.DB.prepare("UPDATE provider_configs SET is_default = 0 WHERE user_id = ?")
+        .bind(user.id)
+        .run();
+    }
+    await c.env.DB.prepare("UPDATE provider_configs SET is_default = ? WHERE id = ?")
+      .bind(body.is_default ? 1 : 0, id)
+      .run();
+  }
+
+  await c.env.DB.prepare("UPDATE provider_configs SET updated_at = datetime('now') WHERE id = ?")
+    .bind(id)
+    .run();
+
+  return c.json({ success: true });
+});
+
+// Delete provider (from dashboard form)
+providerRoutes.post("/v1/providers/:id/delete", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+
+  await c.env.DB.prepare(
+    "DELETE FROM provider_configs WHERE id = ? AND user_id = ?",
+  )
+    .bind(id, user.id)
+    .run();
+
+  return c.redirect("/dashboard");
+});
+
+// Delete provider (API)
+providerRoutes.delete("/v1/providers/:id", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+
+  const existing = await c.env.DB.prepare(
+    "SELECT id FROM provider_configs WHERE id = ? AND user_id = ?",
+  )
+    .bind(id, user.id)
+    .first();
+
+  if (!existing) {
+    return c.json({ error: { message: "Provider not found", code: "not_found" } }, 404 as any);
+  }
+
+  await c.env.DB.prepare(
+    "DELETE FROM provider_configs WHERE id = ? AND user_id = ?",
+  )
+    .bind(id, user.id)
+    .run();
+
+  return c.json({ success: true });
+});
+
+// Internal helper: get decrypted provider config (used by inference)
+export async function getUserProvider(
+  db: D1Database,
+  userId: string,
+  encryptionKey: string,
+  providerConfigId?: string | null,
+): Promise<{ provider: string; model: string; apiKey: string } | null> {
+  const config = providerConfigId
+    ? await db.prepare(
+        "SELECT * FROM provider_configs WHERE id = ? AND user_id = ?",
+      ).bind(providerConfigId, userId).first<{ provider: string; model: string; api_key_encrypted: string }>()
+    : await db.prepare(
+        "SELECT * FROM provider_configs WHERE user_id = ? ORDER BY is_default DESC LIMIT 1",
+      ).bind(userId).first<{ provider: string; model: string; api_key_encrypted: string }>();
+
+  if (!config) return null;
+
+  const apiKey = await decrypt(config.api_key_encrypted, encryptionKey);
+  return {
+    provider: config.provider,
+    model: config.model,
+    apiKey,
+  };
+}
