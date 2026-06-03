@@ -139,6 +139,13 @@ async function callOpenAICompatible(
     return c.json({ error: { message: `Provider error: ${err}`, code: "provider_error" } }, gwRes.status as any);
   }
 
+  if (body.stream) {
+    return new Response(gwRes.body, {
+      status: 200,
+      headers: { "content-type": "text/event-stream" },
+    });
+  }
+
   const data = await gwRes.json();
   return c.json(data);
 }
@@ -202,6 +209,9 @@ inferenceRoutes.post("/v1/chat/completions", async (c) => {
   }
 
   if (provider.provider === "anthropic") {
+    if (body.stream) {
+      return c.json({ error: { message: "Streaming is not supported for Anthropic providers", code: "streaming_not_supported" } }, 400);
+    }
     return callAnthropic(c, provider, body);
   }
 

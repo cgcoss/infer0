@@ -222,6 +222,13 @@ oauthRoutes.get("/oauth/authorize", async (c) => {
             <option value="${p.id}">${(p.name as string) || (p.provider as string) + ' ' + (p.model as string)}</option>
           `)}
         </select>
+        <div style="background:var(--bg-hover);border-radius:4px;padding:12px;margin-bottom:20px;font-size:0.8125rem;color:var(--text-muted);line-height:1.6">
+          <strong style="color:var(--text)">What this means:</strong><br />
+          ${app.name} will send prompts to infer0 using the provider you select above.
+          infer0 does not store your prompts. Your API key is never shared with ${app.name}.
+          You can revoke this access anytime from
+          <a href="/services" style="color:var(--accent)">Authorizations</a>.
+        </div>
         <div class="actions">
           <a href="/" class="cancel">Cancel</a>
           <button type="submit" class="approve">Authorize</button>

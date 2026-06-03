@@ -51,6 +51,7 @@ export function Layout({ title, user, children }: LayoutProps) {
             margin: 0 auto;
             width: 100%;
             border-bottom: 1px solid var(--border);
+            position: relative;
           }
           nav .logo { font-size: 1.25rem; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -0.02em; }
           nav .logo span { color: var(--accent); }
@@ -60,6 +61,21 @@ export function Layout({ title, user, children }: LayoutProps) {
           nav .links .btn { background: var(--accent); color: #fff; padding: 6px 16px; border-radius: var(--radius); font-size: 0.875rem; }
           nav .links .btn:hover { background: var(--accent-hover); color: #fff; }
           nav .avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+          .hamburger { display:none; background:none; border:none; cursor:pointer; padding:4px; color:var(--text-muted) }
+          .hamburger:hover { color:var(--text) }
+          .hamburger svg { width:24px; height:24px }
+          @media (max-width:700px) {
+            nav .links { display:none; flex-direction:column; position:absolute; top:100%; left:0; right:0; background:var(--bg-card); border-bottom:1px solid var(--border); padding:12px 24px; gap:12px; z-index:200 }
+            nav .links.open { display:flex }
+            .hamburger { display:block }
+            .avatar-dropdown.open .dropdown-menu { right:24px }
+            .container { padding:32px 16px }
+            h1 { font-size:1.75rem }
+            h2 { font-size:1.25rem }
+            table { display:block; overflow-x:auto; white-space:nowrap }
+          }
+          pre { overflow-x:auto; white-space:pre; word-break:normal }
+          img, video, iframe { max-width:100%; height:auto }
           .avatar-dropdown { position:relative }
           .avatar-btn { display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:0;color:var(--text-muted) }
           .avatar-btn:hover { color:var(--text) }
@@ -100,7 +116,7 @@ export function Layout({ title, user, children }: LayoutProps) {
           pre { background: var(--bg-hover); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; overflow-x: auto; font-size: 0.8125rem; margin-bottom: 16px; }
           code { font-family: "SF Mono", "Fira Code", monospace; }
           .badge { display: inline-block; background: var(--bg-hover); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--text-muted); }
-          .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 32px; }
+          .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; margin-bottom: 32px; }
           .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
           .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
           .card p { font-size: 0.875rem; }
@@ -133,7 +149,13 @@ export function Layout({ title, user, children }: LayoutProps) {
       <body>
         <nav>
           <a href="/" class="logo">infer<span>0</span></a>
-          <div class="links">
+          <button class="hamburger" id="hamburger" aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          </button>
+          <div class="links" id="nav-links">
+            <a href="/quickstart">Quickstart</a>
+            <a href="/pricing">Pricing</a>
+            <a href="/faq">FAQ</a>
             <a href="/docs">Docs</a>
             ${user
               ? html`
@@ -156,6 +178,16 @@ export function Layout({ title, user, children }: LayoutProps) {
                 </script>`
               : html`<a href="/login" class="btn">Sign in</a>`}
           </div>
+          <script>
+          (function(){
+            var h=document.getElementById('hamburger'),l=document.getElementById('nav-links');
+            if(h&&l){
+              h.addEventListener('click',function(e){e.stopPropagation();l.classList.toggle('open')});
+              document.addEventListener('click',function(e){if(!l.contains(e.target)&&e.target!==h)l.classList.remove('open')});
+              l.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){l.classList.remove('open')})});
+            }
+          })();
+          </script>
         </nav>
         <main>${children}</main>
         <footer>infer0 &mdash; bring your own inference provider</footer>

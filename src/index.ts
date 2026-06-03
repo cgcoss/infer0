@@ -10,6 +10,9 @@ import { userinfoRoutes } from "./routes/api-userinfo";
 import { oauthRoutes } from "./routes/oauth";
 import { providerPageRoutes } from "./routes/page-providers";
 import { servicePageRoutes } from "./routes/page-services";
+import { quickstartRoutes } from "./routes/page-quickstart";
+import { faqRoutes } from "./routes/page-faq";
+import { pricingRoutes } from "./routes/page-pricing";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -104,6 +107,9 @@ app.route("/", authorizedAppRoutes);
 app.route("/", oauthRoutes);
 app.route("/", providerPageRoutes);
 app.route("/", servicePageRoutes);
+app.route("/", quickstartRoutes);
+app.route("/", faqRoutes);
+app.route("/", pricingRoutes);
 app.route("/", userinfoRoutes);
 
 export default app;
