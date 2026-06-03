@@ -40,7 +40,7 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
 
   ${newSecret ? html`
     <div class="banner">
-      <strong>App registered — save this secret now</strong>
+      <strong>App registered. Save this secret now</strong>
       <p>This is the only time you'll see it. If you lose it, you'll need to reset it.</p>
       <div class="secret-display">${newSecret}</div>
       <p class="hint">Copy this now. It won't be shown again.</p>

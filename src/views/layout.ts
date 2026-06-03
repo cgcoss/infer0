@@ -13,7 +13,7 @@ export function Layout({ title, user, children }: LayoutProps) {
       <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>${title} — infer0</title>
+        <title>${title} | infer0</title>
         <meta
           name="description"
           content="infer0 is an inference routing service. Developers integrate once, end users bring their own provider."
