@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import type { Env } from "../types";
 import { verifyToken } from "../lib/auth";
 import { getUserProvider } from "./api-providers";
+import { scrubProviderError } from "../lib/scrub";
 
 export const inferenceRoutes = new Hono<{ Bindings: Env }>();
 
@@ -80,7 +81,7 @@ async function callAnthropic(
   });
 
   if (!gwRes.ok) {
-    const err = await gwRes.text();
+    const err = scrubProviderError(await gwRes.text());
     return c.json({ error: { message: `Provider error: ${err}`, code: "provider_error" } }, gwRes.status as any);
   }
 
@@ -134,7 +135,7 @@ async function callOpenAICompatible(
   });
 
   if (!gwRes.ok) {
-    const err = await gwRes.text();
+    const err = scrubProviderError(await gwRes.text());
     return c.json({ error: { message: `Provider error: ${err}`, code: "provider_error" } }, gwRes.status as any);
   }
 
@@ -142,9 +143,23 @@ async function callOpenAICompatible(
   return c.json(data);
 }
 
+const inferenceRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
 inferenceRoutes.post("/v1/chat/completions", async (c) => {
   const auth = await authenticateRequest(c);
   if ("status" in auth) return auth;
+
+  // Per-user rate limit (30 req / 60s) for spend control
+  const now = Date.now();
+  const rlEntry = inferenceRateLimitMap.get(auth.userId);
+  if (rlEntry && now < rlEntry.resetAt) {
+    rlEntry.count++;
+    if (rlEntry.count > 30) {
+      return c.json({ error: { message: "Rate limit exceeded. Try again in 60 seconds.", code: "rate_limited" } }, 429);
+    }
+  } else {
+    inferenceRateLimitMap.set(auth.userId, { count: 1, resetAt: now + 60_000 });
+  }
 
   // Look up the authorization + linked OAuth app
   const oauthAuth = await c.env.DB.prepare(
@@ -163,16 +178,7 @@ inferenceRoutes.post("/v1/chat/completions", async (c) => {
     return c.json({ error: { message: "Authorization revoked or not found", code: "auth_revoked" } }, 403);
   }
 
-  // Also check if the user revoked this app from the dashboard
-  const revokedApp = await c.env.DB.prepare(
-    "SELECT revoked_at FROM authorized_apps WHERE user_id = ? AND oauth_app_id = ? AND revoked_at IS NOT NULL",
-  ).bind(auth.userId, oauthAuth.oauth_app_id).first<{ revoked_at: string }>();
-
-  if (revokedApp) {
-    return c.json({ error: { message: "Access revoked. Remove and re-authorize this app from the dashboard.", code: "auth_revoked" } }, 403);
-  }
-
-  const provider = await getUserProvider(c.env.DB, auth.userId, c.env.ENCRYPTION_KEY, oauthAuth.provider_config_id);
+  const provider = await getUserProvider(c.env.DB, auth.userId, c.env.ENCRYPTION_KEY, oauthAuth.provider_config_id, c.env.ENCRYPTION_KEY_PREVIOUS);
   if (!provider) {
     return c.json({ error: { message: "No provider configured", code: "no_provider" } }, 400);
   }
@@ -185,10 +191,11 @@ inferenceRoutes.post("/v1/chat/completions", async (c) => {
       `INSERT INTO authorized_apps (id, user_id, oauth_app_id, app_prefix, developer_name, provider_config_id, last_used_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime(? / 1000, 'unixepoch'))
        ON CONFLICT(user_id, oauth_app_id) DO UPDATE SET
+         revoked_at = NULL,
          last_used_at = datetime('now'),
          expires_at = datetime(? / 1000, 'unixepoch'),
          developer_name = CASE WHEN authorized_apps.developer_name = '' THEN ? ELSE authorized_apps.developer_name END,
-         provider_config_id = COALESCE(authorized_apps.provider_config_id, ?)`,
+         provider_config_id = ?`,
     ).bind(crypto.randomUUID(), auth.userId, oauthAuth.oauth_app_id, "oauth", oauthAuth.app_name, oauthAuth.provider_config_id ?? null, Date.now() + 3600000, Date.now() + 3600000, oauthAuth.app_name, oauthAuth.provider_config_id ?? null).run();
   } catch (err) {
     console.error("Failed to record authorization:", err);

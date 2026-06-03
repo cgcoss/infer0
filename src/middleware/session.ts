@@ -6,7 +6,6 @@ import { verifyToken } from "../lib/auth";
 declare module "hono" {
   interface ContextVariableMap {
     user: SessionUser;
-    developerKeyId: string;
   }
 }
 

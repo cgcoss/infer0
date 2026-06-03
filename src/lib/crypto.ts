@@ -1,3 +1,13 @@
+export async function hashKey(key: string): Promise<string> {
+  const bytes = new TextEncoder().encode(key);
+  const hashBytes = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hashBytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export const CURRENT_KEY_VERSION = "v1";
+
 const ALGORITHM = "AES-GCM";
 const KEY_USAGE: string[] = ["encrypt", "decrypt"];
 

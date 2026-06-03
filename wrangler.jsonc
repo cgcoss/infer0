@@ -11,9 +11,13 @@
       "migrations_dir": "migrations"
     }
   ],
+  "routes": [
+    { "pattern": "infer0.com", "custom_domain": true },
+    { "pattern": "www.infer0.com", "custom_domain": true }
+  ],
   "vars": {
     "ACCOUNT_ID": "1c43cf36c63d9acea273e15a9949e2be",
-    "APP_URL": "https://infer0.cgcoss.workers.dev",
+    "APP_URL": "https://infer0.com",
     "AI_GATEWAY_URL": "https://gateway.ai.cloudflare.com/v1"
   },
   "observability": {

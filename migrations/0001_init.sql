@@ -32,6 +32,7 @@ CREATE TABLE provider_configs (
   model TEXT NOT NULL DEFAULT '',
   name TEXT NOT NULL DEFAULT '',
   api_key_encrypted TEXT NOT NULL,
+  key_version TEXT NOT NULL DEFAULT 'v1',
   is_default INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),

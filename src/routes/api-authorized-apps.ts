@@ -22,18 +22,23 @@ authorizedAppRoutes.post("/v1/authorized-apps/:id/revoke", requireSession, async
   const id = c.req.param("id");
 
   const existing = await c.env.DB.prepare(
-    "SELECT id FROM authorized_apps WHERE id = ? AND user_id = ? AND revoked_at IS NULL",
-  ).bind(id, user.id).first();
+    "SELECT id, oauth_app_id FROM authorized_apps WHERE id = ? AND user_id = ? AND revoked_at IS NULL",
+  ).bind(id, user.id).first<{ id: string; oauth_app_id: string }>();
 
   if (!existing) {
     return c.json({ error: { message: "Authorization not found or already revoked", code: "not_found" } }, 404);
   }
 
   await c.env.DB.prepare(
+    `UPDATE oauth_authorizations SET revoked_at = datetime('now')
+     WHERE user_id = ? AND oauth_app_id = ? AND revoked_at IS NULL`,
+  ).bind(user.id, existing.oauth_app_id).run();
+
+  await c.env.DB.prepare(
     "UPDATE authorized_apps SET revoked_at = datetime('now') WHERE id = ?",
   ).bind(id).run();
 
-  return c.json({ success: true });
+  return c.redirect("/dashboard");
 });
 
 authorizedAppRoutes.put("/v1/authorized-apps/:id/provider", requireSession, async (c) => {

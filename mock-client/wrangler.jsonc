@@ -5,7 +5,7 @@
   "compatibility_date": "2025-03-03",
   "compatibility_flags": ["global_fetch_strictly_public"],
   "vars": {
-    "INFER0_API": "https://infer0.cgcoss.workers.dev",
+    "INFER0_API": "https://infer0.com",
     "CLIENT_ID": "test-client-001",
     "CLIENT_SECRET": "527c1973a28b62e81e9e3824694f6563cea2aba7e4b7b4f9f1c9a8b7f5c48f14"
   }

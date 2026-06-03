@@ -6,8 +6,6 @@ import { authRoutes } from "./routes/page-auth";
 import { dashboardRoutes } from "./routes/page-dashboard";
 import { providerRoutes } from "./routes/api-providers";
 import { inferenceRoutes } from "./routes/api-inference";
-import { apiKeyRoutes } from "./routes/api-keys";
-import { devKeysRoutes } from "./routes/page-dev-keys";
 import { authorizedAppRoutes } from "./routes/api-authorized-apps";
 import { oauthRoutes } from "./routes/oauth";
 
@@ -101,8 +99,6 @@ app.route("/", authRoutes);
 app.route("/", dashboardRoutes);
 app.route("/", providerRoutes);
 app.route("/", inferenceRoutes);
-app.route("/", apiKeyRoutes);
-app.route("/", devKeysRoutes);
 app.route("/", authorizedAppRoutes);
 app.route("/", oauthRoutes);
 

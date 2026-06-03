@@ -4,7 +4,7 @@
 interface __BaseEnv_Env {
 	DB: D1Database;
 	ACCOUNT_ID: "1c43cf36c63d9acea273e15a9949e2be";
-	APP_URL: "https://infer0.cgcoss.workers.dev";
+	APP_URL: "https://infer0.com";
 	AI_GATEWAY_URL: "https://api.cloudflare.com/client/v4/accounts";
 	GOOGLE_CLIENT_ID: string;
 	GOOGLE_CLIENT_SECRET: string;
@@ -12,6 +12,7 @@ interface __BaseEnv_Env {
 	GITHUB_CLIENT_SECRET: string;
 	JWT_SECRET: string;
 	ENCRYPTION_KEY: string;
+	ENCRYPTION_KEY_PREVIOUS?: string;
 	CF_API_TOKEN: string;
 }
 declare namespace Cloudflare {

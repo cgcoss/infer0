@@ -4,7 +4,7 @@ import type { Env } from "../types";
 import { requireAuth } from "../middleware/session";
 import { getSessionUser } from "../middleware/session";
 import { signToken } from "../lib/auth";
-import { hashKey } from "../lib/keys";
+import { hashKey } from "../lib/crypto";
 import { Layout } from "../views/layout";
 
 export const oauthRoutes = new Hono<{ Bindings: Env }>();
@@ -306,8 +306,8 @@ oauthRoutes.post("/v1/oauth/token", async (c) => {
 
     // Validate client credentials
     const app = await c.env.DB.prepare(
-      "SELECT id FROM oauth_apps WHERE id = ? AND client_secret = ?",
-    ).bind(clientId, clientSecret).first();
+      "SELECT id, name FROM oauth_apps WHERE id = ? AND client_secret = ?",
+    ).bind(clientId, clientSecret).first<{ id: string; name: string }>();
 
     if (!app) {
       return c.json({ error: "invalid_client" }, 401);
@@ -366,6 +366,17 @@ oauthRoutes.post("/v1/oauth/token", async (c) => {
       refreshTokenExpiresAt,
       auth.id,
     ).run();
+
+    // Upsert authorized_apps so the dashboard shows it immediately
+    const expiresAt = Date.now() + 3600000;
+    await c.env.DB.prepare(
+      `INSERT INTO authorized_apps (id, user_id, oauth_app_id, app_prefix, developer_name, provider_config_id, last_used_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime(? / 1000, 'unixepoch'))
+       ON CONFLICT(user_id, oauth_app_id) DO UPDATE SET
+         revoked_at = NULL,
+         provider_config_id = ?,
+         expires_at = datetime(? / 1000, 'unixepoch')`,
+    ).bind(crypto.randomUUID(), auth.user_id, clientId, "oauth", app.name, auth.provider_config_id, expiresAt, auth.provider_config_id, expiresAt).run();
 
     return c.json({
       access_token: accessToken,

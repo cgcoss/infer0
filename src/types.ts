@@ -31,6 +31,7 @@ export interface ProviderConfig {
   model: string;
   name: string;
   api_key_encrypted: string;
+  key_version: string;
   is_default: number;
   created_at: string;
   updated_at: string;

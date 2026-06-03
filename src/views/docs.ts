@@ -49,12 +49,12 @@ export function DocsView({ user }: DocsViewProps) {
 
         <h2>2. Authorization redirect</h2>
         <p>Send the user to infer0's authorization endpoint:</p>
-        <pre><code>GET https://infer0.cgcoss.workers.dev/oauth/authorize?client_id=&lt;client_id&gt;&redirect_uri=&lt;callback_url&gt;&response_type=code</code></pre>
+        <pre><code>GET https://infer0.com/oauth/authorize?client_id=&lt;client_id&gt;&redirect_uri=&lt;callback_url&gt;&response_type=code</code></pre>
         <p>The user signs in (if needed), selects which provider to use, and approves the request.
         infer0 redirects back to your callback with a <code>code</code> parameter.</p>
 
         <h2>3. Exchange code for tokens</h2>
-        <pre><code>POST https://infer0.cgcoss.workers.dev/v1/oauth/token
+        <pre><code>POST https://infer0.com/v1/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code
@@ -69,7 +69,7 @@ grant_type=authorization_code
         <div class="endpoint">
           <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
           <p>OpenAI-compatible chat completions. Routes to the end user's configured provider and model automatically.</p>
-          <pre><code>curl https://infer0.cgcoss.workers.dev/v1/chat/completions \\
+          <pre><code>curl https://infer0.com/v1/chat/completions \\
   -H "Authorization: Bearer &lt;access_token&gt;" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -77,9 +77,11 @@ grant_type=authorization_code
   }'</code></pre>
           <pre><code>import OpenAI from "openai";
 
+const accessToken = "&lt;access_token&gt;";
+
 const client = new OpenAI({
-  baseURL: "https://infer0.cgcoss.workers.dev/v1",
-  apiKey: "&lt;access_token&gt;",
+  baseURL: "https://infer0.com/v1",
+  apiKey: accessToken,
 });
 
 const chat = await client.chat.completions.create({
@@ -89,7 +91,7 @@ const chat = await client.chat.completions.create({
         </div>
 
         <h2>Refreshing the access token</h2>
-        <pre><code>POST https://infer0.cgcoss.workers.dev/v1/oauth/refresh
+        <pre><code>POST https://infer0.com/v1/oauth/refresh
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=refresh_token

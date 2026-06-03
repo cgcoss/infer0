@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { requireAuth } from "../middleware/session";
-import { encrypt, decrypt } from "../lib/crypto";
+import { encrypt, decrypt, CURRENT_KEY_VERSION } from "../lib/crypto";
 
 export const providerRoutes = new Hono<{ Bindings: Env }>();
 
@@ -27,6 +27,7 @@ providerRoutes.post("/v1/providers", requireAuth, async (c) => {
   let name: string;
   let apiKey: string;
   let isDefault: number;
+  let redirect: string | undefined;
 
   if (contentType.includes("application/json")) {
     const body = await c.req.json<{
@@ -35,12 +36,14 @@ providerRoutes.post("/v1/providers", requireAuth, async (c) => {
       name?: string;
       api_key: string;
       is_default?: boolean;
+      redirect?: string;
     }>();
     provider = body.provider;
     model = body.model ?? "";
     name = body.name ?? "";
     apiKey = body.api_key;
     isDefault = body.is_default ? 1 : 0;
+    redirect = body.redirect;
   } else {
     const body = await c.req.parseBody();
     provider = body.provider as string;
@@ -48,6 +51,7 @@ providerRoutes.post("/v1/providers", requireAuth, async (c) => {
     name = (body.name as string) || "";
     apiKey = body.api_key as string;
     isDefault = body.is_default === "1" ? 1 : 0;
+    redirect = body.redirect as string | undefined;
   }
 
   if (!provider || !apiKey) {
@@ -67,13 +71,12 @@ providerRoutes.post("/v1/providers", requireAuth, async (c) => {
   const id = crypto.randomUUID();
   const label = name || `${provider}${model ? " " + model : ""}`;
   await c.env.DB.prepare(
-    "INSERT INTO provider_configs (id, user_id, provider, model, name, api_key_encrypted, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO provider_configs (id, user_id, provider, model, name, api_key_encrypted, is_default, key_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
   )
-    .bind(id, user.id, provider, model, label, encrypted, isDefault)
+    .bind(id, user.id, provider, model, label, encrypted, isDefault, CURRENT_KEY_VERSION)
     .run();
 
-  const redirect = (body.redirect as string) || "/dashboard";
-  return c.redirect(redirect);
+  return c.redirect(redirect || "/dashboard");
 });
 
 // Update provider
@@ -118,8 +121,8 @@ providerRoutes.put("/v1/providers/:id", requireAuth, async (c) => {
 
   if (body.api_key) {
     const encrypted = await encrypt(body.api_key, c.env.ENCRYPTION_KEY);
-    await c.env.DB.prepare("UPDATE provider_configs SET api_key_encrypted = ? WHERE id = ?")
-      .bind(encrypted, id)
+    await c.env.DB.prepare("UPDATE provider_configs SET api_key_encrypted = ?, key_version = ? WHERE id = ?")
+      .bind(encrypted, CURRENT_KEY_VERSION, id)
       .run();
   }
 
@@ -185,16 +188,30 @@ export async function getUserProvider(
   userId: string,
   encryptionKey: string,
   providerConfigId?: string | null,
+  previousEncryptionKey?: string,
 ): Promise<{ provider: string; model: string; apiKey: string } | null> {
   const config = providerConfigId
     ? await db.prepare(
-        "SELECT * FROM provider_configs WHERE id = ? AND user_id = ?",
-      ).bind(providerConfigId, userId).first<{ provider: string; model: string; api_key_encrypted: string }>()
+        "SELECT id, provider, model, api_key_encrypted, key_version FROM provider_configs WHERE id = ? AND user_id = ?",
+      ).bind(providerConfigId, userId).first<{ id: string; provider: string; model: string; api_key_encrypted: string; key_version: string }>()
     : await db.prepare(
-        "SELECT * FROM provider_configs WHERE user_id = ? ORDER BY is_default DESC LIMIT 1",
-      ).bind(userId).first<{ provider: string; model: string; api_key_encrypted: string }>();
+        "SELECT id, provider, model, api_key_encrypted, key_version FROM provider_configs WHERE user_id = ? ORDER BY is_default DESC LIMIT 1",
+      ).bind(userId).first<{ id: string; provider: string; model: string; api_key_encrypted: string; key_version: string }>();
 
   if (!config) return null;
+
+  const keyVersion = config.key_version || "v1";
+
+  // If row is on an older key version, decrypt with old key and re-wrap with current key
+  if (keyVersion !== CURRENT_KEY_VERSION) {
+    if (!previousEncryptionKey) return null;
+
+    const apiKey = await decrypt(config.api_key_encrypted, previousEncryptionKey);
+    db.prepare(
+      "UPDATE provider_configs SET api_key_encrypted = ?, key_version = ?, updated_at = datetime('now') WHERE id = ?",
+    ).bind(await encrypt(apiKey, encryptionKey), CURRENT_KEY_VERSION, config.id).run().catch(() => {});
+    return { provider: config.provider, model: config.model, apiKey };
+  }
 
   const apiKey = await decrypt(config.api_key_encrypted, encryptionKey);
   return {
