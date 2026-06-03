@@ -76,7 +76,7 @@ providerRoutes.post("/v1/providers", requireAuth, async (c) => {
     .bind(id, user.id, provider, model, label, encrypted, isDefault, CURRENT_KEY_VERSION)
     .run();
 
-  return c.redirect(redirect || "/dashboard");
+  return c.redirect(redirect || "/providers");
 });
 
 // Update provider
@@ -155,7 +155,7 @@ providerRoutes.post("/v1/providers/:id/delete", requireAuth, async (c) => {
     .bind(id, user.id)
     .run();
 
-  return c.redirect("/dashboard");
+  return c.redirect("/providers");
 });
 
 // Delete provider (API)

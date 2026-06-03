@@ -10,7 +10,7 @@ export const authRoutes = new Hono<{ Bindings: Env }>();
 
 authRoutes.get("/login", async (c) => {
   const user = await getSessionUser(c);
-  if (user) return c.redirect(c.req.query("redirect") || "/dashboard");
+  if (user) return c.redirect(c.req.query("redirect") || "/providers");
   return c.html(LoginView({ redirect: c.req.query("redirect") }));
 });
 
@@ -46,7 +46,7 @@ authRoutes.get("/auth/google/callback", async (c) => {
     const token = await createSessionToken(userId, profile, c.env.JWT_SECRET, c.env.DB);
     const cookie = serializeSessionCookie(token, c.env.APP_URL);
 
-    let redirect = "/dashboard";
+    let redirect = "/providers";
     if (state) {
       try { redirect = decodeURIComponent(state); } catch {}
     }
@@ -91,7 +91,7 @@ authRoutes.get("/auth/github/callback", async (c) => {
     const token = await createSessionToken(userId, profile, c.env.JWT_SECRET, c.env.DB);
     const cookie = serializeSessionCookie(token, c.env.APP_URL);
 
-    let redirect = "/dashboard";
+    let redirect = "/providers";
     if (state) {
       try { redirect = decodeURIComponent(state); } catch {}
     }

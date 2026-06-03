@@ -3,11 +3,12 @@ import type { Env } from "./types";
 import { homeRoutes } from "./routes/page-home";
 import { docsRoutes } from "./routes/page-docs";
 import { authRoutes } from "./routes/page-auth";
-import { dashboardRoutes } from "./routes/page-dashboard";
 import { providerRoutes } from "./routes/api-providers";
 import { inferenceRoutes } from "./routes/api-inference";
 import { authorizedAppRoutes } from "./routes/api-authorized-apps";
 import { oauthRoutes } from "./routes/oauth";
+import { providerPageRoutes } from "./routes/page-providers";
+import { servicePageRoutes } from "./routes/page-services";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -96,10 +97,11 @@ a:hover{background:#818cf8}
 app.route("/", homeRoutes);
 app.route("/", docsRoutes);
 app.route("/", authRoutes);
-app.route("/", dashboardRoutes);
 app.route("/", providerRoutes);
 app.route("/", inferenceRoutes);
 app.route("/", authorizedAppRoutes);
 app.route("/", oauthRoutes);
+app.route("/", providerPageRoutes);
+app.route("/", servicePageRoutes);
 
 export default app;

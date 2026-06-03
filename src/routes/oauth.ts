@@ -28,22 +28,15 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
     user,
     children: html`
 <style>
-.app-card { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px }
-.app-card h3 { font-size:1rem;font-weight:600;margin-bottom:8px }
-.app-card label { display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:2px }
-.app-card code { font-size:0.75rem;word-break:break-all }
-.secret { background:var(--bg-hover);padding:8px 12px;border-radius:4px;font-family:"SF Mono","Fira Code",monospace;font-size:0.75rem;word-break:break-all;margin-top:4px }
-.secret-new { background:var(--accent);color:#fff;padding:8px 12px;border-radius:4px;font-family:"SF Mono","Fira Code",monospace;font-size:0.75rem;word-break:break-all;margin-top:4px }
 .banner { background:#1e40af;color:#fff;padding:16px 20px;border-radius:var(--radius);margin-bottom:24px;line-height:1.5 }
 .banner strong { display:block;font-size:0.9375rem;margin-bottom:4px }
 .banner .secret-display { background:rgba(0,0,0,0.3);padding:10px 14px;border-radius:4px;font-family:"SF Mono","Fira Code",monospace;font-size:0.8125rem;word-break:break-all;margin:8px 0;user-select:all }
 .banner .hint { font-size:0.8125rem;opacity:0.9 }
-.reset-btn { background:transparent;border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:var(--radius);font-size:0.8125rem;cursor:pointer;margin-top:10px;display:inline-block }
-.reset-btn:hover { background:var(--bg-hover) }
+.code-block { background:var(--bg-hover);padding:8px 12px;border-radius:4px;font-family:"SF Mono","Fira Code",monospace;font-size:0.75rem;word-break:break-all }
 </style>
 <div class="container">
   <h1>OAuth Apps</h1>
-  <p>Register your developer apps so users can sign in via infer0.</p>
+  <p>Register OAuth apps so users can sign in via infer0 and authorize your app to use their AI provider.</p>
 
   ${newSecret ? html`
     <div class="banner">
@@ -54,29 +47,41 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
     </div>
   ` : ''}
 
-  <h2>Your Apps</h2>
   ${results.length === 0
-    ? html`<p style="margin-bottom:2rem">No apps registered yet.</p>`
+    ? html`<p style="margin:24px 0;color:var(--text-muted)">No apps registered yet.</p>`
     : html`
+    <div class="card-grid">
       ${results.map((app: Record<string, unknown>) => {
         const fullSecret = app.client_secret as string;
         const masked = '**** **** **** ' + fullSecret.slice(-4);
         return html`
-        <div class="app-card">
-          <h3>${app.name}</h3>
-          <label>Client ID</label>
-          <div class="secret">${app.id}</div>
-          <label style="margin-top:8px">Client Secret</label>
-          <div class="secret">${masked}</div>
-          <label style="margin-top:8px">Redirect URI</label>
-          <div class="secret">${app.redirect_uri}</div>
-          <label style="margin-top:8px">Created</label>
-          <div style="font-size:0.8125rem;color:var(--text-muted)">${new Date((app.created_at as string) + 'Z').toLocaleString()}</div>
-          <form method="POST" action="/v1/oauth/apps/${app.id}/reset-secret" style="display:inline">
-            <button type="submit" class="reset-btn">Reset Secret</button>
-          </form>
+        <div class="record-card">
+          <div class="card-title">${app.name}</div>
+          <div class="card-row">
+            <span class="card-label">Client ID</span>
+            <span class="code-block">${app.id}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">Client Secret</span>
+            <span class="code-block">${masked}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">Redirect URI</span>
+            <span class="code-block" style="font-size:0.7rem">${app.redirect_uri}</span>
+          </div>
+          <div class="card-row">
+            <span class="card-label">Created</span>
+            <span style="font-size:0.8125rem;color:var(--text-muted)">${new Date((app.created_at as string) + 'Z').toLocaleString()}</span>
+          </div>
+          <div class="card-divider"></div>
+          <div class="card-actions">
+            <form method="POST" action="/v1/oauth/apps/${app.id}/reset-secret" style="display:inline">
+              <button type="submit" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:var(--radius);font-size:0.8125rem;cursor:pointer">Reset Secret</button>
+            </form>
+          </div>
         </div>
       `})}
+    </div>
     `}
 
   <h2>Register New App</h2>
@@ -198,9 +203,9 @@ oauthRoutes.get("/oauth/authorize", async (c) => {
   ${providers.length === 0 ? html`
     <div class="consent-card" style="text-align:center">
       <p style="margin-bottom:16px">No AI providers configured yet.</p>
-      <p style="margin-bottom:20px;font-size:0.875rem;color:var(--text-muted)">Add a provider in the dashboard (opens in a new tab), then click Retry.</p>
+      <p style="margin-bottom:20px;font-size:0.875rem;color:var(--text-muted)">Add a provider first, then come back and authorize.</p>
       <div class="actions" style="justify-content:center">
-        <a href="/dashboard" target="_blank" class="retry">Open Dashboard</a>
+        <a href="/providers" target="_blank" class="retry">Add Provider</a>
         <a href="/oauth/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code" class="retry">Retry</a>
         <a href="/" class="cancel">Cancel</a>
       </div>

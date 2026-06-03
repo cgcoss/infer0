@@ -60,6 +60,37 @@ export function Layout({ title, user, children }: LayoutProps) {
           nav .links .btn { background: var(--accent); color: #fff; padding: 6px 16px; border-radius: var(--radius); font-size: 0.875rem; }
           nav .links .btn:hover { background: var(--accent-hover); color: #fff; }
           nav .avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+          .avatar-dropdown { position:relative }
+          .avatar-btn { display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:0;color:var(--text-muted) }
+          .avatar-btn:hover { color:var(--text) }
+          .avatar-btn .chevron { width:16px;height:16px;transition:transform 0.15s }
+          .avatar-dropdown.open .avatar-btn .chevron { transform:rotate(180deg);color:var(--text) }
+          .avatar-dropdown.open .dropdown-menu { display:block }
+          .dropdown-menu { display:none;position:absolute;top:calc(100% + 10px);right:0;min-width:220px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 0;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.4) }
+          .dropdown-menu a { display:block;padding:8px 16px;font-size:0.875rem;color:var(--text);text-decoration:none }
+          .dropdown-menu a:hover { background:var(--bg-hover) }
+          .dropdown-header { padding:8px 16px;font-size:0.8125rem;color:var(--text-muted);border-bottom:1px solid var(--border);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+          .dropdown-divider { height:1px;background:var(--border);margin:4px 0 }
+          /* Shared card styles */
+          .card-grid { display:flex;flex-direction:column;gap:12px;margin-bottom:24px }
+          .record-card { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px }
+          .record-card .card-title { font-size:1rem;font-weight:600;margin-bottom:4px }
+          .record-card .card-sub { font-size:0.8125rem;color:var(--text-muted);margin-bottom:12px }
+          .record-card .card-row { display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:0.875rem }
+          .record-card .card-label { color:var(--text-muted);font-size:0.75rem }
+          .record-card .card-divider { height:1px;background:var(--border);margin:12px 0 }
+          .record-card .card-actions { display:flex;gap:8px;flex-wrap:wrap;align-items:center }
+          .record-card select.card-select { background:var(--bg-hover);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:0.75rem;max-width:200px }
+          .badge { display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600 }
+          .badge-active { background:#166534;color:#86efac }
+          .badge-revoked { background:#7f1d1d;color:#fca5a5 }
+          .badge-default { background:#1e3a5f;color:#93c5fd }
+          .hub-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:24px }
+          .hub-card { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-decoration:none;color:var(--text);transition:border-color 0.15s }
+          .hub-card:hover { border-color:var(--accent) }
+          .hub-card h3 { font-size:1rem;font-weight:600;margin-bottom:4px }
+          .hub-card .count { font-size:2rem;font-weight:800;color:var(--accent);margin:8px 0 }
+          .hub-card p { font-size:0.8125rem;color:var(--text-muted);margin:0 }
           main { flex: 1; }
           .container { max-width: var(--max-w); margin: 0 auto; padding: 48px 24px; }
           footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.75rem; border-top: 1px solid var(--border); }
@@ -103,10 +134,26 @@ export function Layout({ title, user, children }: LayoutProps) {
         <nav>
           <a href="/" class="logo">infer<span>0</span></a>
           <div class="links">
-            <a href="/">Home</a>
             <a href="/docs">Docs</a>
             ${user
-              ? html`<img class="avatar" src="${user.avatar_url ?? ""}" alt="" /><a href="/dashboard">Dashboard</a><a href="/dev/apps">OAuth Apps</a><a href="/logout">Logout</a>`
+              ? html`
+                <div class="avatar-dropdown" id="avatar-dropdown">
+                  <button class="avatar-btn" onclick="document.getElementById('avatar-dropdown').classList.toggle('open')" aria-label="User menu">
+                    <img class="avatar" src="${user.avatar_url ?? ""}" alt="${user.name ?? "Avatar"}" />
+                    <svg class="chevron" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
+                  </button>
+                  <div class="dropdown-menu">
+                    <div class="dropdown-header">${user.email}</div>
+                    <a href="/providers">AI Providers</a>
+                    <a href="/services">Authorizations</a>
+                    <a href="/dev/apps">OAuth Apps</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="/logout">Sign out</a>
+                  </div>
+                </div>
+                <script>
+                document.addEventListener('click',function(e){var d=document.getElementById('avatar-dropdown');if(d&&!d.contains(e.target))d.classList.remove('open')});
+                </script>`
               : html`<a href="/login" class="btn">Sign in</a>`}
           </div>
         </nav>

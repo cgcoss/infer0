@@ -38,7 +38,7 @@ authorizedAppRoutes.post("/v1/authorized-apps/:id/revoke", requireSession, async
     "UPDATE authorized_apps SET revoked_at = datetime('now') WHERE id = ?",
   ).bind(id).run();
 
-  return c.redirect("/dashboard");
+  return c.redirect("/services");
 });
 
 authorizedAppRoutes.put("/v1/authorized-apps/:id/provider", requireSession, async (c) => {

@@ -102,7 +102,7 @@ grant_type=refresh_token
         <h2>Managing provider configs</h2>
         <p>
           Your end users manage their own provider keys through the
-          <a href="/dashboard" style="color:var(--accent)">infer0 dashboard</a>.
+          <a href="/providers" style="color:var(--accent)">infer0 dashboard</a>.
           Your app never sees or handles their API keys.
         </p>
       </div>
