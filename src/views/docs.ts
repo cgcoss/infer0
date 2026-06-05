@@ -72,7 +72,7 @@ grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&clie
 
         <h2>4. Inference</h2>
 
-        <p>Use the access token to call the OpenAI-compatible chat completions endpoint. infer0 routes the request to the user's configured provider and model automatically. You have two options:</p>
+        <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Two SDK endpoints are available:</p>
 
         <div class="endpoint">
           <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
@@ -102,6 +102,47 @@ const chat = await client.chat.completions.create({
           <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. infer0 uses the model your user has configured on their end.</p>
         </div>
 
+        <div class="endpoint" style="margin-top:24px">
+          <h3><span class="method post">POST</span><span class="path">/v1/messages</span></h3>
+
+          <p><strong>Option 3: Anthropic SDK</strong> — use the official <code>@anthropic-ai/sdk</code> package by pointing <code>baseURL</code> to infer0 and passing the access token as the <code>apiKey</code>.</p>
+          <pre><code>import Anthropic from "@anthropic-ai/sdk";
+
+const accessToken = "&lt;access_token&gt;";
+
+const client = new Anthropic({
+  baseURL: "https://infer0.com/v1",
+  apiKey: accessToken,
+});
+
+const message = await client.messages.create({
+  model: "ignored",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "Hello" }],
+});</code></pre>
+          <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. infer0 uses the model your user has configured on their end. <code>max_tokens</code> is required by the Anthropic SDK.</p>
+        </div>
+
+        <div class="endpoint" style="margin-top:24px">
+          <h3><span class="method post">POST</span><span class="path">/v1/responses</span></h3>
+
+          <p><strong>Option 4: OpenAI Responses API SDK</strong> — use the official <code>openai</code> package's <code>responses.create()</code> with <code>baseURL</code> pointed to infer0.</p>
+          <pre><code>import OpenAI from "openai";
+
+const accessToken = "&lt;access_token&gt;";
+
+const client = new OpenAI({
+  baseURL: "https://infer0.com/v1",
+  apiKey: accessToken,
+});
+
+const response = await client.responses.create({
+  model: "ignored",
+  input: "Hello",
+});</code></pre>
+          <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. The <code>input</code> can be a string or an array of input items. Works with any provider.</p>
+        </div>
+
         <h2>5. How model selection works</h2>
 
         <p>infer0's API is OpenAI-compatible, so you pass a <code>model</code> field in every request. But the value you send is ignored — the actual model is determined by each user's provider configuration, not by your app.</p>
@@ -109,8 +150,10 @@ const chat = await client.chat.completions.create({
         <h3>Requested vs actual model</h3>
 
         <pre><code>// Your app always sends the same request format:
-POST /v1/chat/completions
-{ "model": "gpt-4", "messages": [...] }
+POST /v1/chat/completions  (OpenAI SDK)
+POST /v1/messages          (Anthropic SDK)
+POST /v1/responses         (OpenAI Responses SDK)
+{ "model": "ignored", "input/messages": [...] }
 
 // User A has OpenAI / gpt-4-turbo
 // infer0 routes to: OpenAI gpt-4-turbo
@@ -225,12 +268,6 @@ POST /v1/chat/completions
   }
 }</code></pre>
           <p style="margin:8px 0 0;font-size:0.8125rem;color:var(--text-muted)"><strong>Recommended behavior:</strong> Check which provider the user has configured and adjust request parameters accordingly. Some features (like <code>response_format</code> or <code>tools</code>) are provider-specific.</p>
-        </div>
-
-        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
-          <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">Streaming unavailable</h4>
-          <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">Streaming is supported for OpenAI-compatible providers but may not be supported for all configurations. If the provider cannot stream, the response will be non-streaming regardless of the <code>stream</code> parameter.</p>
-          <p style="margin:0;font-size:0.875rem;color:var(--text-muted)"><strong>Recommended behavior:</strong> Always handle both streaming and non-streaming responses in your client code. If your app requires streaming, check the response format or rely on a timeout fallback.</p>
         </div>
 
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
