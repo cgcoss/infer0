@@ -87,6 +87,7 @@ CREATE TABLE oauth_authorizations (
   code_expires_at TEXT,
   access_token_hash TEXT,
   refresh_token_hash TEXT,
+  refresh_token_previous_hash TEXT,
   access_token_expires_at TEXT,
   refresh_token_expires_at TEXT,
   revoked_at TEXT,

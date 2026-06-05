@@ -68,6 +68,7 @@ export interface OAuthAuthorization {
   code_expires_at: string | null;
   access_token_hash: string | null;
   refresh_token_hash: string | null;
+  refresh_token_previous_hash: string | null;
   access_token_expires_at: string | null;
   refresh_token_expires_at: string | null;
   revoked_at: string | null;

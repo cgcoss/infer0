@@ -368,6 +368,7 @@ oauthRoutes.post("/v1/oauth/token", async (c) => {
            code_expires_at = NULL,
            access_token_hash = ?,
            refresh_token_hash = ?,
+           refresh_token_previous_hash = NULL,
            access_token_expires_at = ?,
            refresh_token_expires_at = ?
        WHERE id = ?`,
@@ -403,7 +404,7 @@ oauthRoutes.post("/v1/oauth/token", async (c) => {
   }
 });
 
-// OAuth refresh endpoint
+// OAuth refresh endpoint with token rotation + reuse detection
 oauthRoutes.post("/v1/oauth/refresh", async (c) => {
   const body = await c.req.parseBody();
   const grantType = (body.grant_type as string) || "";
@@ -428,15 +429,18 @@ oauthRoutes.post("/v1/oauth/refresh", async (c) => {
     return c.json({ error: "invalid_client" }, 401);
   }
 
-  // Find authorization with this refresh token
-  const refreshHash = await hashKey(refreshToken);
+  const presentedHash = await hashKey(refreshToken);
+
+  // Look up the authorization by current or previous refresh token hash
   const auth = await c.env.DB.prepare(
-    `SELECT id, user_id, refresh_token_expires_at
+    `SELECT id, user_id, refresh_token_hash, refresh_token_previous_hash, refresh_token_expires_at
      FROM oauth_authorizations
-     WHERE oauth_app_id = ? AND refresh_token_hash = ? AND revoked_at IS NULL`,
-  ).bind(clientId, refreshHash).first<{
+     WHERE oauth_app_id = ? AND (refresh_token_hash = ? OR refresh_token_previous_hash = ?) AND revoked_at IS NULL`,
+  ).bind(clientId, presentedHash, presentedHash).first<{
     id: string;
     user_id: string;
+    refresh_token_hash: string | null;
+    refresh_token_previous_hash: string | null;
     refresh_token_expires_at: string;
   }>();
 
@@ -444,6 +448,15 @@ oauthRoutes.post("/v1/oauth/refresh", async (c) => {
     return c.json({ error: "invalid_grant" }, 400);
   }
 
+  // Reuse detection: presented token matches the previous (already-rotated) hash
+  if (auth.refresh_token_previous_hash !== null && presentedHash === auth.refresh_token_previous_hash) {
+    await c.env.DB.prepare(
+      "UPDATE oauth_authorizations SET revoked_at = datetime('now') WHERE id = ?",
+    ).bind(auth.id).run();
+    return c.json({ error: "invalid_grant", message: "Refresh token has been revoked due to reuse" }, 400);
+  }
+
+  // Normal rotation path: presented token matches the current hash
   if (new Date(auth.refresh_token_expires_at) < new Date()) {
     return c.json({ error: "invalid_grant", message: "Refresh token expired" }, 400);
   }
@@ -455,14 +468,33 @@ oauthRoutes.post("/v1/oauth/refresh", async (c) => {
     "1h",
   );
 
-  const accessTokenExpiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+  // Generate a new refresh token (rotate)
+  const newRefreshTokenRaw = crypto.randomUUID() + crypto.randomUUID();
+  const newRefreshHash = await hashKey(newRefreshTokenRaw);
 
+  const accessTokenExpiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+  const refreshTokenExpiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+
+  // Rotate: move current hash to previous_hash, set new hash
   await c.env.DB.prepare(
-    "UPDATE oauth_authorizations SET access_token_hash = ?, access_token_expires_at = ? WHERE id = ?",
-  ).bind(await hashKey(accessToken), accessTokenExpiresAt, auth.id).run();
+    `UPDATE oauth_authorizations
+     SET access_token_hash = ?,
+         access_token_expires_at = ?,
+         refresh_token_previous_hash = refresh_token_hash,
+         refresh_token_hash = ?,
+         refresh_token_expires_at = ?
+     WHERE id = ?`,
+  ).bind(
+    await hashKey(accessToken),
+    accessTokenExpiresAt,
+    newRefreshHash,
+    refreshTokenExpiresAt,
+    auth.id,
+  ).run();
 
   return c.json({
     access_token: accessToken,
+    refresh_token: newRefreshTokenRaw,
     expires_in: 3600,
     token_type: "Bearer",
   });

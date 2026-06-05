@@ -45,16 +45,6 @@ export function FaqView({ user }: FaqViewProps) {
             <p style="margin:0;font-size:0.9375rem;color:var(--text-muted)">Inference requests for that user will return a <code>no_provider</code> error. The user can reconnect a provider from <a href="/providers" style="color:var(--accent)">AI Providers</a> at any time. Their authorizations for your app remain intact.</p>
           </div>
 
-          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
-            <h2 style="font-size:1rem;font-weight:600;margin-bottom:6px">Is infer0 free or paid?</h2>
-            <p style="margin:0;font-size:0.9375rem;color:var(--text-muted)">infer0 is currently in development. There are no usage charges at this stage. Pricing, if introduced, will be transparent and published here.</p>
-          </div>
-
-          <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
-            <h2 style="font-size:1rem;font-weight:600;margin-bottom:6px">Can I self-host infer0?</h2>
-            <p style="margin:0;font-size:0.9375rem;color:var(--text-muted)">Not yet. infer0 runs on Cloudflare Workers and uses D1, AI Gateway, and other Cloudflare services. A self-hostable version is not available today.</p>
-          </div>
-
         </div>
       </div>
     `,
