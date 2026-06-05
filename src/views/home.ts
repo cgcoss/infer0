@@ -36,7 +36,7 @@ export function HomeView({ user }: HomeViewProps) {
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">1</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">Developer integrates once</h3>
-                <p style="margin:0;font-size:0.875rem">Add the infer0 OAuth flow to your app. Use the OpenAI SDK, Anthropic SDK, or Responses API — whichever your app prefers. infer0 translates between formats automatically.</p>
+                <p style="margin:0;font-size:0.875rem">Add the infer0 OAuth flow to your app. Use the OpenAI SDK, Anthropic SDK, or Responses API. infer0 translates between formats automatically.</p>
               </div>
             </div>
             <div style="display:flex;gap:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
@@ -69,7 +69,7 @@ export function HomeView({ user }: HomeViewProps) {
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">//</div>
               <h3>SDK of your choice</h3>
-              <p>OpenAI Chat, Anthropic Messages, or Responses API — use the SDK your codebase already has. No provider-specific routing logic needed.</p>
+              <p>OpenAI Chat, Anthropic Messages, or Responses API. Use the SDK your codebase already has. No provider-specific routing logic needed.</p>
             </div>
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">/**</div>

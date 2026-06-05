@@ -24,7 +24,7 @@ export function QuickstartView({ user }: QuickstartViewProps) {
 
         <section>
           <h2>Step 1: Create your project</h2>
-          <pre><code>mkdir infer0-chat
+          <pre><code class="language-bash">mkdir infer0-chat
 cd infer0-chat
 npm init -y
 npm install openai express</code></pre>
@@ -42,7 +42,7 @@ npm install openai express</code></pre>
 
         <section>
           <h2>Step 3: Set environment variables</h2>
-          <pre><code>export CLIENT_ID="your-client-id"
+          <pre><code class="language-bash">export CLIENT_ID="your-client-id"
 export CLIENT_SECRET="your-client-secret"
 export REDIRECT_URI="http://localhost:3000/callback"
 export PORT=3000</code></pre>
@@ -51,7 +51,7 @@ export PORT=3000</code></pre>
         <section>
           <h2>Step 4: Create the server</h2>
           <p>Save this as <code>server.mjs</code>:</p>
-          <pre><code>import express from "express";
+          <pre><code class="language-javascript">import express from "express";
 import OpenAI from "openai";
 
 const app = express();
@@ -117,7 +117,7 @@ app.listen(PORT, () => console.log("Server running on http://localhost:" + PORT)
 
         <section>
           <h2>Step 5: Run it</h2>
-          <pre><code>node server.mjs</code></pre>
+          <pre><code class="language-bash">node server.mjs</code></pre>
           <ol style="font-size:0.9375rem;margin-bottom:0;color:var(--text-muted);line-height:2">
             <li>Open <code>http://localhost:3000/login</code> and authorize your app.</li>
             <li>Visit <code>http://localhost:3000/chat?q=What+is+the+capital+of+France</code> to see a non-streaming response.</li>
@@ -126,7 +126,7 @@ app.listen(PORT, () => console.log("Server running on http://localhost:" + PORT)
 
         <section>
           <h2>Expected output</h2>
-          <pre><code>{
+          <pre><code class="language-json">{
   "id": "chatcmpl-...",
   "object": "chat.completion",
   "created": 1717000000,

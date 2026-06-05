@@ -356,6 +356,40 @@ export function Layout({ title, user, children }: LayoutProps) {
             border-radius: 2px;
           }
         </style>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+        <style>
+          pre code.hljs { background: transparent !important; padding: 0 !important; }
+          .hljs { color: var(--text) !important; background: transparent !important; }
+          .hljs-keyword { color: #f59e0b !important; }
+          .hljs-string { color: #a3e635 !important; }
+          .hljs-number { color: #f97316 !important; }
+          .hljs-built_in { color: #f59e0b !important; }
+          .hljs-literal { color: #f97316 !important; }
+          .hljs-function { color: #60a5fa !important; }
+          .hljs-title { color: #60a5fa !important; }
+          .hljs-params { color: var(--text) !important; }
+          .hljs-attr { color: #f59e0b !important; }
+          .hljs-attribute { color: #f59e0b !important; }
+          .hljs-property { color: #60a5fa !important; }
+          .hljs-selector-tag { color: #f59e0b !important; }
+          .hljs-meta { color: #6a6a5e !important; }
+          .hljs-punctuation { color: #a09f96 !important; }
+          .hljs-section { color: #60a5fa !important; }
+          .hljs-variable { color: var(--text) !important; }
+          .hljs-comment,
+          .hljs-quote,
+          .hljs-doctag { color: #6a6a5e !important; font-style: italic !important; }
+          .hljs-tag,
+          .hljs-name { color: #f59e0b !important; }
+          .hljs-selector-class { color: #60a5fa !important; }
+          .hljs-regexp,
+          .hljs-symbol { color: #a3e635 !important; }
+          .hljs-deletion { color: #ef4444 !important; }
+          .hljs-addition { color: #a3e635 !important; }
+          .hljs-link { color: #60a5fa !important; text-decoration: underline !important; }
+          .hljs-emphasis { font-style: italic !important; }
+          .hljs-strong { font-weight: bold !important; }
+        </style>
       </head>
       <body>
         <nav>
@@ -413,6 +447,8 @@ export function Layout({ title, user, children }: LayoutProps) {
         </nav>
         <main>${children}</main>
         <footer>infer0 &mdash; use your own intelligence</footer>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script>
       </body>
     </html>
   `;

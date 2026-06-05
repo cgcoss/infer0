@@ -19,12 +19,12 @@ export function DocsView({ user }: DocsViewProps) {
           </p>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:48px 0;padding:24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
-          <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">01</span><span style="font-size:0.75rem;color:var(--text-muted)">Auth redirect</span></div>
-          <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">02</span><span style="font-size:0.75rem;color:var(--text-muted)">Exchange code</span></div>
-          <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">03</span><span style="font-size:0.75rem;color:var(--text-muted)">Call inference API</span></div>
-          <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">04</span><span style="font-size:0.75rem;color:var(--text-muted)">Refresh tokens</span></div>
-        </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:48px 0;padding:24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">01</span><span style="font-size:0.75rem;color:var(--text-muted)">Register app</span></div>
+            <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">02</span><span style="font-size:0.75rem;color:var(--text-muted)">Auth redirect</span></div>
+            <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">03</span><span style="font-size:0.75rem;color:var(--text-muted)">Exchange code</span></div>
+            <div style="text-align:center"><span style="display:block;font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--accent)">04</span><span style="font-size:0.75rem;color:var(--text-muted)">Inference</span></div>
+          </div>
 
         <section>
           <h2>1. Register your app</h2>
@@ -42,7 +42,7 @@ export function DocsView({ user }: DocsViewProps) {
           <div class="endpoint">
             <h3><span class="method get">GET</span><span class="path">/oauth/authorize</span></h3>
             <p>Redirect the user to infer0's authorization endpoint to start the OAuth flow.</p>
-            <pre><code>https://infer0.com/oauth/authorize?client_id=&lt;client_id&gt;&redirect_uri=&lt;callback_url&gt;&response_type=code</code></pre>
+            <pre><code class="language-http">https://infer0.com/oauth/authorize?client_id=&lt;client_id&gt;&redirect_uri=&lt;callback_url&gt;&response_type=code</code></pre>
             <p>The user signs in (if needed), selects a provider, and approves the request.
             infer0 redirects back to your callback with a <code>code</code> parameter.</p>
           </div>
@@ -53,98 +53,223 @@ export function DocsView({ user }: DocsViewProps) {
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/oauth/token</span></h3>
             <p>Trade the authorization code for an access token and refresh token.</p>
-            <pre><code>POST https://infer0.com/v1/oauth/token
+            <pre><code class="language-http">POST https://infer0.com/v1/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&client_secret=&lt;client_secret&gt;&redirect_uri=&lt;redirect_uri&gt;</code></pre>
-            <p>Returns an <code>access_token</code> (expires in 1 hour) and <code>refresh_token</code>
-            (expires in 30 days). The access token works for all three inference endpoints and for fetching user info.</p>
+
+            <pre><code class="language-json">HTTP 200
+
+{
+  "access_token": "infer0_at_xxx",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "infer0_rt_xxx",
+  "scope": "inference userinfo"
+}</code></pre>
+            <p>The <code>access_token</code> expires in 1 hour. The <code>refresh_token</code>
+            expires in 30 days and is single-use. The access token works for all three inference endpoints and for fetching user info.</p>
           </div>
         </section>
 
         <section>
           <h2>4. Inference</h2>
 
-          <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Three API endpoints are available — use whichever SDK your app prefers:</p>
+          <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Three API endpoints are available. Pick the one that matches your preferred SDK format. The response always matches the request protocol, regardless of which upstream provider handles it.</p>
 
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
+            <p style="margin:0 0 12px 0">OpenAI Chat Completions format.</p>
 
-            <p><strong>Raw HTTP</strong> — works with any HTTP client or programming language.</p>
-            <pre><code>curl https://infer0.com/v1/chat/completions \\
-  -H "Authorization: Bearer &lt;access_token&gt;" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "messages": [{ "role": "user", "content": "Hello" }]
-  }'</code></pre>
+            <pre><code class="language-http">POST https://infer0.com/v1/chat/completions
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
 
-            <p><strong>OpenAI SDK</strong> — use the official <code>openai</code> package by pointing <code>baseURL</code> to infer0 and passing the access token as the <code>apiKey</code>.</p>
-            <pre><code>import OpenAI from "openai";
+{
+  "messages": [
+    { "role": "user", "content": "Hello" }
+  ]
+}</code></pre>
 
-const accessToken = "&lt;access_token&gt;";
+            <pre><code class="language-json">HTTP 200
+
+{
+  "id": "chatcmpl-xxx",
+  "object": "chat.completion",
+  "created": 1718000000,
+  "model": "gpt-4o-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! How can I help you today?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 9,
+    "total_tokens": 19
+  }
+}</code></pre>
+
+            <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the OpenAI SDK:</p>
+            <pre><code class="language-javascript">import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "https://infer0.com/v1",
-  apiKey: accessToken,
+  apiKey: "&lt;access_token&gt;",
 });
 
 const chat = await client.chat.completions.create({
-  model: "ignored",
   messages: [{ role: "user", content: "Hello" }],
 });</code></pre>
-            <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. infer0 uses the model your user has configured on their end.</p>
           </div>
 
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/messages</span></h3>
+            <p style="margin:0 0 12px 0">Anthropic Messages format.</p>
 
-            <p><strong>Anthropic SDK</strong> — use the official <code>@anthropic-ai/sdk</code> package by pointing <code>baseURL</code> to infer0 and passing the access token as the <code>apiKey</code>.</p>
-            <pre><code>import Anthropic from "@anthropic-ai/sdk";
+            <pre><code class="language-http">POST https://infer0.com/v1/messages
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
+anthropic-version: 2023-06-01
 
-const accessToken = "&lt;access_token&gt;";
+{
+  "messages": [
+    { "role": "user", "content": "Hello" }
+  ]
+}</code></pre>
+
+            <pre><code class="language-json">HTTP 200
+
+{
+  "id": "msg_xxx",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Hello! How can I help you today?"
+    }
+  ],
+  "model": "claude-sonnet-4-20250514",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 9
+  }
+}</code></pre>
+
+            <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the Anthropic SDK:</p>
+            <pre><code class="language-javascript">import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({
   baseURL: "https://infer0.com/v1",
-  apiKey: accessToken,
+  apiKey: "&lt;access_token&gt;",
 });
 
 const message = await client.messages.create({
-  model: "ignored",
-  max_tokens: 1024,
   messages: [{ role: "user", content: "Hello" }],
 });</code></pre>
-            <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. infer0 uses the model your user has configured on their end. <code>max_tokens</code> is required by the Anthropic SDK.</p>
           </div>
 
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/responses</span></h3>
+            <p style="margin:0 0 12px 0">OpenAI Responses API format.</p>
 
-            <p><strong>OpenAI Responses API</strong> — use the official <code>openai</code> package's <code>responses.create()</code> with <code>baseURL</code> pointed to infer0.</p>
-            <pre><code>import OpenAI from "openai";
+            <pre><code class="language-http">POST https://infer0.com/v1/responses
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
 
-const accessToken = "&lt;access_token&gt;";
+{
+  "input": "Hello"
+}</code></pre>
+
+            <pre><code class="language-json">HTTP 200
+
+{
+  "id": "resp_xxx",
+  "object": "response",
+  "created_at": 1718000000,
+  "model": "gpt-4o-mini",
+  "output": [
+    {
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "Hello! How can I help you today?"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 9,
+    "total_tokens": 19
+  }
+}</code></pre>
+
+            <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the OpenAI SDK:</p>
+            <pre><code class="language-javascript">import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "https://infer0.com/v1",
-  apiKey: accessToken,
+  apiKey: "&lt;access_token&gt;",
 });
 
 const response = await client.responses.create({
-  model: "ignored",
   input: "Hello",
 });</code></pre>
-            <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. The <code>input</code> can be a string or an array of input items. Works with any provider.</p>
           </div>
         </section>
 
         <section>
-          <h2>5. How model selection works</h2>
+          <h2>5. Parameters</h2>
 
-          <p>infer0 supports multiple API formats (OpenAI Chat, Anthropic Messages, OpenAI Responses). Regardless of which format you use, the <code>model</code> field value you send is ignored — the actual model is determined by each user's provider configuration, not by your app.</p>
+          <p>For cross-provider compatibility, only these request parameters are accepted. All other parameters (<code>temperature</code>, <code>top_p</code>, <code>max_tokens</code>, <code>tools</code>, <code>response_format</code>, etc.) are silently ignored.</p>
+
+          <table style="width:100%;border-collapse:collapse;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin:24px 0">
+            <tr>
+              <th style="text-align:left;padding:12px 16px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);border-bottom:1px solid var(--border)">Parameter</th>
+              <th style="text-align:left;padding:12px 16px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);border-bottom:1px solid var(--border)">Endpoints</th>
+              <th style="text-align:left;padding:12px 16px;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);border-bottom:1px solid var(--border)">Description</th>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>messages</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/chat/completions</code>, <code>/v1/messages</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">Array of message objects with <code>role</code> and <code>content</code>.</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>input</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/responses</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">String or array of input items. The prompt content.</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>model</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem">All</td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">Accepted but ignored. The user's configured model is always used.</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 16px;font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>stream</code></td>
+              <td style="padding:12px 16px;font-size:0.875rem">All</td>
+              <td style="padding:12px 16px;font-size:0.875rem;color:var(--text-muted)">Set to <code>true</code> to receive a server-sent event stream. Defaults to <code>false</code>.</td>
+            </tr>
+          </table>
+        </section>
+
+        <section>
+          <h2>6. How model selection works</h2>
+
+          <p>infer0 supports multiple API formats (OpenAI Chat, Anthropic Messages, OpenAI Responses). Regardless of which format you use, the <code>model</code> field value you send is ignored. The actual model is determined by each user's provider configuration, not by your app.</p>
 
           <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">Requested vs actual model</h3>
 
-          <pre><code>// Your app always sends the same request format:
+          <pre><code class="language-plaintext">// Your app always sends the same request format:
 POST /v1/chat/completions  (OpenAI SDK)
 POST /v1/messages          (Anthropic SDK)
 POST /v1/responses         (OpenAI Responses SDK)
@@ -185,14 +310,14 @@ POST /v1/responses         (OpenAI Responses SDK)
         </section>
 
         <section>
-          <h2>6. Errors and edge cases</h2>
+          <h2>7. Errors and edge cases</h2>
 
           <p>infer0 returns JSON error responses with a consistent structure. Your app should handle these cases gracefully.</p>
 
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">No provider configured</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">The user signed in and authorized your app but has not connected an AI provider. Your app cannot make inference requests until the user adds a provider.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 400
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 400
 {
   "error": {
     "message": "No provider configured",
@@ -205,7 +330,7 @@ POST /v1/responses         (OpenAI Responses SDK)
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">Authorization revoked</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">The user revoked your app's access from their Authorizations page. The access token is no longer valid.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 403
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 403
 {
   "error": {
     "message": "Authorization revoked or not found",
@@ -218,7 +343,7 @@ POST /v1/responses         (OpenAI Responses SDK)
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">Access token expired</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">Access tokens expire after 1 hour. The token is no longer accepted.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 401
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 401
 {
   "error": {
     "message": "Invalid or expired token",
@@ -231,7 +356,7 @@ POST /v1/responses         (OpenAI Responses SDK)
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">Provider token expired</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">The user's provider API key is invalid or has been revoked. This is surfaced as a provider error from the upstream API.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 401
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 401
 {
   "error": {
     "message": "Provider error: 401 Unauthorized",
@@ -244,7 +369,7 @@ POST /v1/responses         (OpenAI Responses SDK)
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">Provider quota or rate exceeded</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">The user's provider account has hit a rate limit or quota. The error message is forwarded from the upstream provider.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 429
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 429
 {
   "error": {
     "message": "Provider error: 429 Too Many Requests",
@@ -257,7 +382,7 @@ POST /v1/responses         (OpenAI Responses SDK)
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">Unsupported model or feature</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">The user's provider does not support a feature your app requested (e.g. a parameter the provider doesn't accept). The upstream provider returns the error.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 400
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 400
 {
   "error": {
     "message": "Provider error: 400 {'error': {'message': 'Unsupported parameter: ...'}}",
@@ -270,7 +395,7 @@ POST /v1/responses         (OpenAI Responses SDK)
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px">
             <h4 style="font-size:0.875rem;font-weight:600;margin-bottom:4px">infer0 service unavailable</h4>
             <p style="margin:0;font-size:0.875rem;color:var(--text-muted);margin-bottom:8px">infer0 is down or unreachable. The user's provider keys remain unaffected.</p>
-            <pre style="font-size:0.8125rem;margin:0"><code>HTTP 502 / 503 / 504
+            <pre style="font-size:0.8125rem;margin:0"><code class="language-json">HTTP 502 / 503 / 504
 {
   "error": {
     "message": "Provider error: upstream failure",
@@ -282,12 +407,12 @@ POST /v1/responses         (OpenAI Responses SDK)
         </section>
 
         <section>
-          <h2>7. Login / SSO (optional)</h2>
+          <h2>8. Login / SSO (optional)</h2>
           <p>The same access token doubles as an identity token. Use the userinfo endpoint to get the user's profile:</p>
 
           <div class="endpoint">
             <h3><span class="method get">GET</span><span class="path">/v1/userinfo</span></h3>
-            <pre><code>curl https://infer0.com/v1/userinfo \
+            <pre><code class="language-http">curl https://infer0.com/v1/userinfo \
   -H "Authorization: Bearer &lt;access_token&gt;"
 
 {
@@ -301,19 +426,30 @@ POST /v1/responses         (OpenAI Responses SDK)
         </section>
 
         <section>
-          <h2>8. Refreshing the access token</h2>
+          <h2>9. Refreshing the access token</h2>
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/oauth/refresh</span></h3>
             <p>Access tokens expire after 1 hour. Use the refresh token to get a new one without asking the user to re-authorize. Refresh tokens are single-use. Each response includes a new <code>refresh_token</code>.</p>
-            <pre><code>POST https://infer0.com/v1/oauth/refresh
+            <pre><code class="language-http">POST https://infer0.com/v1/oauth/refresh
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=refresh_token&refresh_token=&lt;refresh_token&gt;&client_id=&lt;client_id&gt;&client_secret=&lt;client_secret&gt;</code></pre>
+
+            <pre><code class="language-json">HTTP 200
+
+{
+  "access_token": "infer0_at_xxx",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "infer0_rt_xxx",
+  "scope": "inference userinfo"
+}</code></pre>
+            <p style="font-size:0.8125rem;color:var(--text-muted)">The previous <code>refresh_token</code> is invalidated. Each refresh returns a new <code>refresh_token</code>.</p>
           </div>
         </section>
 
         <section>
-          <h2>9. Managing provider configs</h2>
+          <h2>10. Managing provider configs</h2>
           <p>
             Your end users manage their own provider keys through
             <a href="/providers" style="color:var(--accent);font-weight:600">AI Providers</a>.

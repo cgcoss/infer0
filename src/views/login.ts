@@ -38,7 +38,7 @@ export function LoginView({ user, redirect }: LoginViewProps) {
           <strong style="color:var(--text);display:block;margin-bottom:8px">What data does infer0 store?</strong>
           infer0 receives your email, name, and profile picture from your Google or GitHub account.
           We use this to create your account and show your profile. Your password is never shared with us
-          — OAuth handles authentication directly with Google or GitHub.
+          OAuth handles authentication directly with Google or GitHub.
           Any API keys you add for AI providers are encrypted before storage.
           You can revoke any app's access or remove your providers at any time from your dashboard.
         </div>
