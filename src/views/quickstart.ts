@@ -11,37 +11,47 @@ export function QuickstartView({ user }: QuickstartViewProps) {
     user,
     children: html`
       <div class="container">
-        <h1>Build a chat app in 5 minutes</h1>
+        <h1 style="font-size:2.5rem;margin-bottom:8px">Build a chat app in 5 minutes</h1>
+        <p style="max-width:600px">Get up and running with infer0 using the OpenAI SDK. The same flow works with the Anthropic SDK and Responses API too.</p>
 
-        <h2>Prerequisites</h2>
-        <ul style="margin-bottom:20px;font-size:0.9375rem">
-          <li>Node.js 18+ installed</li>
-          <li>A terminal and your favorite editor</li>
-        </ul>
+        <section>
+          <h2>Prerequisites</h2>
+          <ul style="margin-bottom:0;font-size:0.9375rem;color:var(--text-muted);line-height:2">
+            <li>Node.js 18+ installed</li>
+            <li>A terminal and your favorite editor</li>
+          </ul>
+        </section>
 
-        <h2>Step 1: Create your project</h2>
-        <pre><code>mkdir infer0-chat
+        <section>
+          <h2>Step 1: Create your project</h2>
+          <pre><code>mkdir infer0-chat
 cd infer0-chat
 npm init -y
 npm install openai express</code></pre>
+        </section>
 
-        <h2>Step 2: Sign in and register an OAuth app</h2>
-        <p>
-          Go to <a href="/login" style="color:var(--accent)">infer0.com</a> and sign in with Google or GitHub.
-          Then go to <a href="/dev/apps" style="color:var(--accent)">OAuth Apps</a> and create a new app.
-          Set the redirect URI to <code>http://localhost:3000/callback</code>.
-          Copy your <strong>client_id</strong> and <strong>client_secret</strong>.
-        </p>
+        <section>
+          <h2>Step 2: Sign in and register an OAuth app</h2>
+          <p>
+            Go to <a href="/login" style="color:var(--accent);font-weight:600">infer0.com</a> and sign in with Google or GitHub.
+            Then go to <a href="/dev/apps" style="color:var(--accent);font-weight:600">OAuth Apps</a> and create a new app.
+            Set the redirect URI to <code>http://localhost:3000/callback</code>.
+            Copy your <strong>client_id</strong> and <strong>client_secret</strong>.
+          </p>
+        </section>
 
-        <h2>Step 3: Set environment variables</h2>
-        <pre><code>export CLIENT_ID="your-client-id"
+        <section>
+          <h2>Step 3: Set environment variables</h2>
+          <pre><code>export CLIENT_ID="your-client-id"
 export CLIENT_SECRET="your-client-secret"
 export REDIRECT_URI="http://localhost:3000/callback"
 export PORT=3000</code></pre>
+        </section>
 
-        <h2>Step 4: Create the server</h2>
-        <p>Save this as <code>server.mjs</code>:</p>
-        <pre><code>import express from "express";
+        <section>
+          <h2>Step 4: Create the server</h2>
+          <p>Save this as <code>server.mjs</code>:</p>
+          <pre><code>import express from "express";
 import OpenAI from "openai";
 
 const app = express();
@@ -102,20 +112,25 @@ app.get("/chat", async (req, res) => {
 });
 
 app.listen(PORT, () => console.log("Server running on http://localhost:" + PORT));</code></pre>
+          <p style="font-size:0.8125rem;color:var(--text-muted)">The <code>model</code> field is ignored. infer0 uses the model your user has configured.</p>
+        </section>
 
-        <h2>Step 5: Run it</h2>
-        <pre><code>node server.mjs</code></pre>
-        <ol style="font-size:0.9375rem;margin-bottom:20px">
-          <li>Open <code>http://localhost:3000/login</code> and authorize your app.</li>
-          <li>Visit <code>http://localhost:3000/chat?q=What+is+the+capital+of+France</code> to see a non-streaming response.</li>
-        </ol>
+        <section>
+          <h2>Step 5: Run it</h2>
+          <pre><code>node server.mjs</code></pre>
+          <ol style="font-size:0.9375rem;margin-bottom:0;color:var(--text-muted);line-height:2">
+            <li>Open <code>http://localhost:3000/login</code> and authorize your app.</li>
+            <li>Visit <code>http://localhost:3000/chat?q=What+is+the+capital+of+France</code> to see a non-streaming response.</li>
+          </ol>
+        </section>
 
-        <h2>Expected output</h2>
-        <pre><code>{
+        <section>
+          <h2>Expected output</h2>
+          <pre><code>{
   "id": "chatcmpl-...",
   "object": "chat.completion",
   "created": 1717000000,
-  "model": "gpt-4-turbo",
+  "model": "gpt-4o-mini",
   "choices": [
     {
       "index": 0,
@@ -132,38 +147,41 @@ app.listen(PORT, () => console.log("Server running on http://localhost:" + PORT)
     "total_tokens": 21
   }
 }</code></pre>
+        </section>
 
-        <h2>Troubleshooting</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:0.875rem;margin-bottom:20px">
-          <tr>
-            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);font-weight:600">Issue</th>
-            <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border);font-weight:600">Fix</th>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid var(--border)"><code>redirect_uri_mismatch</code></td>
-            <td style="padding:8px;border-bottom:1px solid var(--border)">Make sure the redirect URI in your OAuth App settings matches <code>http://localhost:3000/callback</code> exactly.</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid var(--border)"><code>invalid_client</code></td>
-            <td style="padding:8px;border-bottom:1px solid var(--border)">Double-check your <code>CLIENT_ID</code> and <code>CLIENT_SECRET</code> environment variables.</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid var(--border)"><code>invalid_grant</code></td>
-            <td style="padding:8px;border-bottom:1px solid var(--border)">The auth code expired (10 min). Go through <code>/login</code> again to get a fresh code.</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid var(--border)"><code>No provider configured</code></td>
-            <td style="padding:8px;border-bottom:1px solid var(--border)">The user hasn't added an AI provider yet. Have them visit <code>https://infer0.com/providers</code> to add one.</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid var(--border)"><code>Provider error</code> with 401</td>
-            <td style="padding:8px;border-bottom:1px solid var(--border)">The user's provider API key is expired or invalid. They need to update it on AI Providers.</td>
-          </tr>
-          <tr>
-            <td style="padding:8px;border-bottom:1px solid var(--border)"><code>Module not found: openai</code></td>
-            <td style="padding:8px;border-bottom:1px solid var(--border)">Run <code>npm install openai</code> and make sure <code>package.json</code> exists.</td>
-          </tr>
-        </table>
+        <section>
+          <h2>Troubleshooting</h2>
+          <table>
+            <tr>
+              <th>Issue</th>
+              <th>Fix</th>
+            </tr>
+            <tr>
+              <td><code>redirect_uri_mismatch</code></td>
+              <td>Make sure the redirect URI in your OAuth App settings matches <code>http://localhost:3000/callback</code> exactly.</td>
+            </tr>
+            <tr>
+              <td><code>invalid_client</code></td>
+              <td>Double-check your <code>CLIENT_ID</code> and <code>CLIENT_SECRET</code> environment variables.</td>
+            </tr>
+            <tr>
+              <td><code>invalid_grant</code></td>
+              <td>The auth code expired (10 min). Go through <code>/login</code> again to get a fresh code.</td>
+            </tr>
+            <tr>
+              <td><code>No provider configured</code></td>
+              <td>The user hasn't added an AI provider yet. Have them visit <code>https://infer0.com/providers</code> to add one.</td>
+            </tr>
+            <tr>
+              <td><code>Provider error</code> with 401</td>
+              <td>The user's provider API key is expired or invalid. They need to update it on AI Providers.</td>
+            </tr>
+            <tr>
+              <td><code>Module not found: openai</code></td>
+              <td>Run <code>npm install openai</code> and make sure <code>package.json</code> exists.</td>
+            </tr>
+          </table>
+        </section>
       </div>
     `,
   });

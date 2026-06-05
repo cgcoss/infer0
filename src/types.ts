@@ -1,4 +1,6 @@
-export type Env = Cloudflare.Env;
+export type Env = Cloudflare.Env & {
+  TEST_MODE?: string;
+};
 
 export interface User {
   id: string;

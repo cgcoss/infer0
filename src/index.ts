@@ -14,6 +14,7 @@ import { quickstartRoutes } from "./routes/page-quickstart";
 import { faqRoutes } from "./routes/page-faq";
 import { pricingRoutes } from "./routes/page-pricing";
 import { testRoutes } from "./routes/__test";
+import { ogImageRoutes } from "./routes/og-image";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -112,6 +113,14 @@ app.route("/", quickstartRoutes);
 app.route("/", faqRoutes);
 app.route("/", pricingRoutes);
 app.route("/", userinfoRoutes);
+app.route("/", ogImageRoutes);
+// Only register test routes in dev (TEST_MODE=true in .dev.vars)
+app.use("/__test/*", async (c, next) => {
+  if (c.env.TEST_MODE !== "true") {
+    return c.json({ error: "Not found" }, 404);
+  }
+  await next();
+});
 app.route("/", testRoutes);
 
 export default app;
