@@ -32,7 +32,7 @@ export function FaqView({ user }: FaqViewProps) {
 
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
             <h2 style="font-size:1rem;font-weight:600;margin-bottom:6px">Can users choose OpenAI, Anthropic, Gemini, etc.?</h2>
-            <p style="margin:0;font-size:0.9375rem;color:var(--text-muted)">Yes. Users add their own provider and model from <a href="/providers" style="color:var(--accent)">AI Providers</a>. They can switch at any time. The developer's app calls a single endpoint and infer0 routes to whatever the user has configured.</p>
+            <p style="margin:0;font-size:0.9375rem;color:var(--text-muted)">Yes. Users add their own provider and model from <a href="/providers" style="color:var(--accent)">AI Providers</a>. They can switch at any time. The developer's app calls infer0's API and it routes to whatever the user has configured.</p>
           </div>
 
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px">

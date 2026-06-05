@@ -67,12 +67,12 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&client_secret=&lt;client_secret&gt;&redirect_uri=&lt;redirect_uri&gt;</code></pre>
           <p>Returns an <code>access_token</code> (expires in 1 hour) and <code>refresh_token</code>
-          (expires in 30 days). The access token works for both inference and fetching user info.</p>
+          (expires in 30 days). The access token works for all three inference endpoints and for fetching user info.</p>
         </div>
 
         <h2>4. Inference</h2>
 
-        <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Two SDK endpoints are available:</p>
+        <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Three API endpoints are available — use whichever SDK your app prefers:</p>
 
         <div class="endpoint">
           <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
@@ -145,7 +145,7 @@ const response = await client.responses.create({
 
         <h2>5. How model selection works</h2>
 
-        <p>infer0's API is OpenAI-compatible, so you pass a <code>model</code> field in every request. But the value you send is ignored — the actual model is determined by each user's provider configuration, not by your app.</p>
+        <p>infer0 supports multiple API formats (OpenAI Chat Completions, Anthropic Messages, OpenAI Responses). Regardless of which format you use, the <code>model</code> field value you send is ignored — the actual model is determined by each user's provider configuration, not by your app.</p>
 
         <h3>Requested vs actual model</h3>
 
