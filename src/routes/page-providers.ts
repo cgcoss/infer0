@@ -34,6 +34,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
           ${p.name ? html`<div class="card-sub">${p.name}</div>` : ""}
           <div class="card-divider"></div>
           <div class="card-actions">
+            ${!p.is_default ? html`<button class="btn-set-default" data-id="${p.id}" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.8125rem">Set as default</button>` : ""}
             <form method="POST" action="/v1/providers/${p.id}/delete" style="display:inline">
               <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.8125rem">Remove</button>
             </form>
@@ -42,6 +43,20 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
       `)}
     </div>
     `}
+
+  <script>
+  document.querySelectorAll('.btn-set-default').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      await fetch('/v1/providers/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_default: true }),
+      });
+      location.reload();
+    });
+  });
+  </script>
 
   <h2>Add Provider</h2>
   <form method="POST" action="/v1/providers" style="display:flex;flex-direction:column;gap:12px;max-width:400px">
