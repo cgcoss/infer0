@@ -12,11 +12,11 @@ export function QuickstartView({ user }: QuickstartViewProps) {
     children: html`
       <div class="container">
         <h1 style="font-size:2.5rem;margin-bottom:8px">Build a chat app in 5 minutes</h1>
-        <p style="max-width:600px">Get up and running with infer0 using the OpenAI SDK. The same flow works with the Anthropic SDK and Responses API too.</p>
+        <p style="max-width:600px">Get up and running with infer0 using the OpenAI SDK. All requests use the OpenAI Chat Completions format — infer0 translates behind the scenes.</p>
 
         <section>
           <h2>Prerequisites</h2>
-          <ul style="margin-bottom:0;font-size:0.9375rem;color:var(--text-muted);line-height:2">
+          <ul style="margin-bottom:0;padding-left:20px;font-size:0.9375rem;color:var(--text-muted);line-height:2">
             <li>Node.js 18+ installed</li>
             <li>A terminal and your favorite editor</li>
           </ul>
@@ -118,7 +118,7 @@ app.listen(PORT, () => console.log("Server running on http://localhost:" + PORT)
         <section>
           <h2>Step 5: Run it</h2>
           <pre><code class="language-bash">node server.mjs</code></pre>
-          <ol style="font-size:0.9375rem;margin-bottom:0;color:var(--text-muted);line-height:2">
+          <ol style="font-size:0.9375rem;margin-bottom:0;padding-left:20px;color:var(--text-muted);line-height:2">
             <li>Open <code>http://localhost:3000/login</code> and authorize your app.</li>
             <li>Visit <code>http://localhost:3000/chat?q=What+is+the+capital+of+France</code> to see a non-streaming response.</li>
           </ol>

@@ -68,7 +68,7 @@ grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&clie
   "scope": "inference userinfo"
 }</code></pre>
             <p>The <code>access_token</code> expires in 1 hour. The <code>refresh_token</code>
-            expires in 30 days and is single-use. The access token works for all three inference endpoints and for fetching user info.</p>
+            expires in 30 days and is single-use. The access token works for the inference endpoint and for fetching user info.</p>
           </div>
         </section>
 

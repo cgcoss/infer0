@@ -27,7 +27,7 @@ export function PricingView({ user }: PricingViewProps) {
             <ul style="list-style:none;padding:0;margin:0 0 32px;font-size:0.875rem;display:flex;flex-direction:column;gap:12px;flex:1">
               <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> Up to 10,000 requests per month</li>
               <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> All providers supported</li>
-              <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> OpenAI, Anthropic &amp; Responses SDKs</li>
+              <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> OpenAI SDK format</li>
               <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> Community support</li>
             </ul>
             <a href="/login" class="btn-primary" style="text-align:center;justify-content:center">Start building</a>
@@ -41,7 +41,7 @@ export function PricingView({ user }: PricingViewProps) {
             <ul style="list-style:none;padding:0;margin:0 0 32px;font-size:0.875rem;display:flex;flex-direction:column;gap:12px;flex:1">
               <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> Unlimited requests</li>
               <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> All providers supported</li>
-              <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> OpenAI, Anthropic &amp; Responses SDKs</li>
+              <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> OpenAI SDK format</li>
               <li style="display:flex;gap:10px;color:var(--text-muted)"><span style="color:var(--accent);font-weight:700">&#x2713;</span> Priority support</li>
             </ul>
             <a href="/login" class="btn-primary" style="text-align:center;justify-content:center">Start building</a>
@@ -51,7 +51,7 @@ export function PricingView({ user }: PricingViewProps) {
 
         <div style="margin-top:48px;padding:24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem;color:var(--text-muted);line-height:1.8">
           <strong style="color:var(--text);display:block;margin-bottom:8px;font-family:var(--font-display);font-weight:700">How billing works</strong>
-          infer0 counts every inference request (<code>/v1/chat/completions</code>, <code>/v1/messages</code>, or <code>/v1/responses</code>) as one request. Streaming connections count as one request regardless of the number of chunks. Authentication and userinfo requests are free. Your users continue to pay their AI provider (OpenAI, Anthropic, Google) directly for their own usage.
+          infer0 counts every inference request (<code>/v1/chat/completions</code>) as one request. Streaming connections count as one request regardless of the number of chunks. Authentication and userinfo requests are free. Your users continue to pay their AI provider (OpenAI, Anthropic, Google) directly for their own usage.
         </div>
       </div>
     `,

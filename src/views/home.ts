@@ -16,10 +16,10 @@ export function HomeView({ user }: HomeViewProps) {
           <p>
             infer0 is the OAuth layer for AI inference. Your users bring their own
             provider keys (OpenAI, Anthropic, Google). You call a single API in
-            whatever SDK format you prefer. We route to their provider.
+            OpenAI Chat format. We route to their provider.
           </p>
           <div style="margin:28px auto;max-width:420px;text-align:left;font-size:0.875rem;line-height:2.2">
-            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">01</span> One integration, three SDK formats.</div>
+            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">01</span> One integration, one API format.</div>
             <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">02</span> Zero key handling. Encrypted at rest.</div>
             <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">03</span> Users pay their own provider bills.</div>
           </div>
@@ -36,7 +36,7 @@ export function HomeView({ user }: HomeViewProps) {
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">1</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">Developer integrates once</h3>
-                <p style="margin:0;font-size:0.875rem">Add the infer0 OAuth flow to your app. Use the OpenAI SDK, Anthropic SDK, or Responses API. infer0 translates between formats automatically.</p>
+                <p style="margin:0;font-size:0.875rem">Add the infer0 OAuth flow to your app. Use the OpenAI SDK. infer0 translates responses from any provider into OpenAI format automatically.</p>
               </div>
             </div>
             <div style="display:flex;gap:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
@@ -50,14 +50,14 @@ export function HomeView({ user }: HomeViewProps) {
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">3</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">App sends requests to infer0</h3>
-                <p style="margin:0;font-size:0.875rem">Your app passes the user's access token to <code>/v1/chat/completions</code>, <code>/v1/messages</code>, or <code>/v1/responses</code>. Use the SDK that matches your codebase.</p>
+                <p style="margin:0;font-size:0.875rem">Your app passes the user's access token to <code>/v1/chat/completions</code> using the OpenAI SDK. infer0 handles the rest.</p>
               </div>
             </div>
             <div style="display:flex;gap:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">4</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">infer0 routes to their provider</h3>
-                <p style="margin:0;font-size:0.875rem">We look up the user's configured provider and model, forward the request, translate the response, and return it in your requested format. Your app never needs to know which provider is behind the scenes.</p>
+                <p style="margin:0;font-size:0.875rem">We look up the user's configured provider and model, forward the request, translate the response, and return it in OpenAI format. Your app never needs to know which provider is behind the scenes.</p>
               </div>
             </div>
           </div>
@@ -68,8 +68,8 @@ export function HomeView({ user }: HomeViewProps) {
           <div class="grid">
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">//</div>
-              <h3>SDK of your choice</h3>
-              <p>OpenAI Chat, Anthropic Messages, or Responses API. Use the SDK your codebase already has. No provider-specific routing logic needed.</p>
+              <h3>OpenAI Chat format</h3>
+              <p>Use the OpenAI SDK your codebase already has. infer0 translates responses from any provider into OpenAI format. No provider-specific routing logic needed.</p>
             </div>
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">/**</div>
@@ -79,7 +79,7 @@ export function HomeView({ user }: HomeViewProps) {
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">*/</div>
               <h3>Built for streaming</h3>
-              <p>All cross-format streaming is handled server-side. The SDK in your client receives its native stream format regardless of the upstream provider.</p>
+              <p>All cross-format streaming is handled server-side. Your client always receives OpenAI SSE chunks regardless of the upstream provider.</p>
             </div>
           </div>
         </section>
