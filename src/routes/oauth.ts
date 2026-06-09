@@ -67,7 +67,7 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
           </div>
           <div class="card-row">
             <span class="card-label">Redirect URI</span>
-            <span class="code-block" style="font-size:0.7rem">${app.redirect_uri}</span>
+            <span class="code-block redirect-uri-display" data-app-id="${app.id}" style="font-size:0.7rem;cursor:pointer" title="Click to edit">${app.redirect_uri}</span>
           </div>
           <div class="card-row">
             <span class="card-label">Created</span>
@@ -90,6 +90,47 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
     <input type="url" name="redirect_uri" placeholder="Redirect URI (e.g. https://myapp.com/callback)" required style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
     <button type="submit" class="btn-primary" style="border:none;cursor:pointer">Register App</button>
   </form>
+
+  <script>
+  document.querySelectorAll('.redirect-uri-display').forEach(el => {
+    el.addEventListener('click', () => {
+      const appId = el.dataset.appId;
+      const current = el.textContent;
+      const input = document.createElement('input');
+      input.type = 'url';
+      input.value = current;
+      input.style.width = '100%';
+      input.style.background = 'var(--bg-hover)';
+      input.style.border = '1px solid var(--accent)';
+      input.style.borderRadius = '4px';
+      input.style.padding = '4px 8px';
+      input.style.color = 'var(--text)';
+      input.style.fontFamily = 'var(--font-mono, monospace)';
+      input.style.fontSize = '0.7rem';
+      el.replaceWith(input);
+      input.focus();
+      input.select();
+
+      async function save() {
+        const val = input.value.trim();
+        if (val && val !== current) {
+          await fetch('/v1/oauth/apps/' + appId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ redirect_uri: val }),
+          });
+        }
+        location.reload();
+      }
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { location.reload(); }
+      });
+    });
+  });
+  </script>
 </div>
     `,
   }));
@@ -161,6 +202,33 @@ oauthRoutes.post("/v1/oauth/apps/:id/reset-secret", requireAuth, async (c) => {
       500,
     );
   }
+});
+
+// Update OAuth app (redirect URI, name)
+oauthRoutes.put("/v1/oauth/apps/:id", requireAuth, async (c) => {
+  const user = c.get("user");
+  const appId = c.req.param("id");
+  const body = await c.req.json<{ redirect_uri?: string; name?: string }>();
+
+  const app = await c.env.DB.prepare(
+    "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ?",
+  ).bind(appId, user.id).first();
+
+  if (!app) {
+    return c.json({ error: { message: "App not found", code: "not_found" } }, 404);
+  }
+
+  if (body.redirect_uri) {
+    await c.env.DB.prepare("UPDATE oauth_apps SET redirect_uri = ? WHERE id = ?")
+      .bind(body.redirect_uri, appId).run();
+  }
+
+  if (body.name) {
+    await c.env.DB.prepare("UPDATE oauth_apps SET name = ? WHERE id = ?")
+      .bind(body.name, appId).run();
+  }
+
+  return c.json({ success: true });
 });
 
 // OAuth authorize endpoint
