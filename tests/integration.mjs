@@ -27,9 +27,9 @@ async function setupSession(provider, model, apiKey) {
   return res.json();
 }
 
-async function testNonStreaming(label, provider, model, apiKey, path, body, check) {
+async function testNonStreaming(label, provider, model, apiKey, body, check) {
   const { token } = await setupSession(provider, model, apiKey);
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${BASE}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
@@ -41,9 +41,9 @@ async function testNonStreaming(label, provider, model, apiKey, path, body, chec
   if (status === 200) check(data);
 }
 
-async function testStreaming(label, provider, model, apiKey, path, body) {
+async function testStreaming(label, provider, model, apiKey, body) {
   const { token } = await setupSession(provider, model, apiKey);
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${BASE}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ ...body, stream: true }),
@@ -78,7 +78,6 @@ async function main() {
   if (!OPENAI_KEY) { console.error("Error: OPENAI_API_KEY env var required"); process.exit(1); }
   if (!ANTHROPIC_KEY) { console.error("Error: ANTHROPIC_API_KEY env var required"); process.exit(1); }
 
-  // Add TEST_MODE to .dev.vars temporarily
   const originalDevVars = readFileSync(DEV_VARS_PATH, "utf-8");
   writeFileSync(DEV_VARS_PATH, `${originalDevVars.trim()}\nTEST_MODE=true\n`);
 
@@ -114,37 +113,11 @@ async function main() {
     ];
     for (const [desc, prov, model, key] of tests) {
       console.log(`\n━━━ ${desc} ━━━`);
-      await testNonStreaming(`${desc} non-streaming`, prov, model, key, "/v1/chat/completions",
+      await testNonStreaming(`${desc} non-streaming`, prov, model, key,
         { messages: [msg] },
         (d) => { assert(d.object === "chat.completion", "object = chat.completion"); assert(d.choices?.[0]?.message?.content?.length > 0, "has content"); });
-      await testStreaming(`${desc} streaming`, prov, model, key, "/v1/chat/completions",
+      await testStreaming(`${desc} streaming`, prov, model, key,
         { messages: [msg] });
-    }
-
-    const anthTests = [
-      ["Anthropic SDK → OpenAI",    "openai",    OPENAI_MODEL,    OPENAI_KEY],
-      ["Anthropic SDK → Anthropic", "anthropic", ANTHROPIC_MODEL, ANTHROPIC_KEY],
-    ];
-    for (const [desc, prov, model, key] of anthTests) {
-      console.log(`\n━━━ ${desc} ━━━`);
-      await testNonStreaming(`${desc} non-streaming`, prov, model, key, "/v1/messages",
-        { max_tokens: 256, messages: [msg] },
-        (d) => { assert(d.type === "message", "type = message"); assert(d.content?.[0]?.text?.length > 0, "has text content"); });
-      await testStreaming(`${desc} streaming`, prov, model, key, "/v1/messages",
-        { max_tokens: 256, messages: [msg] });
-    }
-
-    const respTests = [
-      ["Responses SDK → OpenAI",    "openai",    OPENAI_MODEL,    OPENAI_KEY],
-      ["Responses SDK → Anthropic", "anthropic", ANTHROPIC_MODEL, ANTHROPIC_KEY],
-    ];
-    for (const [desc, prov, model, key] of respTests) {
-      console.log(`\n━━━ ${desc} ━━━`);
-      await testNonStreaming(`${desc} non-streaming`, prov, model, key, "/v1/responses",
-        { input: "Hi" },
-        (d) => { assert(d.object === "response", `object = response`); assert(d.output?.[0]?.content?.[0]?.text?.length > 0, "has text"); });
-      await testStreaming(`${desc} streaming`, prov, model, key, "/v1/responses",
-        { input: "Hi" });
     }
   } catch (e) {
     console.error("\nERROR:", e);

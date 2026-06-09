@@ -1,55 +1,93 @@
 import type { Env } from "../types";
-import type { Protocol } from "./normalize";
-
-type ProviderInfo = { provider: string; model: string; apiKey: string };
 import { scrubProviderError } from "./scrub";
 import {
   anthropicToOpenAIJSON,
-  openAIToAnthropicJSON,
-  anthropicToResponsesJSON,
-  openAIToResponsesJSON,
   anthropicSSEToOpenAI,
-  openaiSSEToAnthropic,
-  anthropicSSEToResponses,
-  openaiSSEToResponses,
+  googleToOpenAIJSON,
+  googleSSEToOpenAI,
 } from "./translate-response";
 
-const CF_API_BASE = "https://api.cloudflare.com/client/v4/accounts";
+type ProviderInfo = { provider: string; model: string; apiKey: string };
 
-export function buildUrl(env: Env): string {
-  return `${CF_API_BASE}/${env.ACCOUNT_ID}/ai/run`;
+const GATEWAY_BASE = "https://gateway.ai.cloudflare.com/v1";
+
+function gatewayBase(env: Env): string {
+  return `${GATEWAY_BASE}/${env.ACCOUNT_ID}/${env.GATEWAY_ID ?? "default"}`;
 }
 
-export function buildHeaders(env: Env, provider: ProviderInfo): Record<string, string> {
-  const headers: Record<string, string> = {
-    "cf-aig-authorization": `Bearer ${env.CF_API_TOKEN}`,
-    "cf-aig-gateway-id": "default",
-    "Content-Type": "application/json",
-  };
-  if (provider.provider === "anthropic") {
-    headers["x-api-key"] = provider.apiKey;
-  } else {
-    headers["Authorization"] = `Bearer ${provider.apiKey}`;
-  }
-  return headers;
-}
-
-export function buildBody(
+async function callProviderViaGateway(
+  env: Env,
   provider: ProviderInfo,
   developerBody: Record<string, unknown>,
-): object {
+): Promise<Response> {
   const { messages, stream, model: _clientModel, ...rest } = developerBody;
-  return {
-    model: `${provider.provider}/${provider.model}`,
-    input: {
-      messages,
-      stream: stream ?? false,
-      ...rest,
-    },
-  };
-}
+  const isStream = stream === true;
 
-const SSE_MODEL_PATTERN = /"model"\s*:\s*"[^"]*"/g;
+  if (provider.provider === "anthropic") {
+    const body: Record<string, unknown> = {
+      model: provider.model,
+      messages,
+      max_tokens: (rest.max_tokens as number) ?? 1024,
+      stream: isStream,
+    };
+    if (rest.system) body.system = rest.system;
+
+    return fetch(`${gatewayBase(env)}/anthropic/v1/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": provider.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  if (provider.provider === "google-ai-studio") {
+    const msgs = (messages as Array<{ role: string; content: string }>) ?? [];
+    const contents = msgs.map((m) => ({
+      role: m.role === "assistant" ? "model" : m.role,
+      parts: [{ text: m.content }],
+    }));
+    const body: Record<string, unknown> = { contents };
+    if (rest.system) body.systemInstruction = { parts: [{ text: rest.system as string }] };
+
+    const endpoint = isStream ? "streamGenerateContent?alt=sse" : "generateContent";
+    return fetch(`${gatewayBase(env)}/google-ai-studio/v1/models/${provider.model}:${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": provider.apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  const body: Record<string, unknown> = {
+    model: provider.model,
+    messages,
+    stream: isStream,
+  };
+
+  if (rest.system) {
+    (body.messages as any[]).unshift({ role: "system", content: rest.system });
+  }
+
+  for (const [key, value] of Object.entries(rest)) {
+    if (!["system", "max_output_tokens", "instructions", "max_tokens"].includes(key)) {
+      body[key] = value;
+    }
+  }
+
+  return fetch(`${gatewayBase(env)}/openai/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
 
 async function callProviderDirectly(
   provider: ProviderInfo,
@@ -72,6 +110,27 @@ async function callProviderDirectly(
         "Content-Type": "application/json",
         "x-api-key": provider.apiKey,
         "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  if (provider.provider === "google-ai-studio") {
+    const msgs = (messages as Array<{ role: string; content: string }>) ?? [];
+    const contents = msgs.map((m) => ({
+      role: m.role === "assistant" ? "model" : m.role,
+      parts: [{ text: m.content }],
+    }));
+    const isStream = stream === true;
+    const body: Record<string, unknown> = { contents };
+    if (rest.system) body.systemInstruction = { parts: [{ text: rest.system as string }] };
+
+    const endpoint = isStream ? "streamGenerateContent?alt=sse" : "generateContent";
+    return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${provider.model}:${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": provider.apiKey,
       },
       body: JSON.stringify(body),
     });
@@ -103,56 +162,16 @@ async function callProviderDirectly(
   });
 }
 
-function appendDone(stream: ReadableStream): ReadableStream {
-  const encoder = new TextEncoder();
-  return stream.pipeThrough(
-    new TransformStream({
-      flush(controller) {
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      },
-    }),
-  );
-}
-
-function patchModelInSSE(stream: ReadableStream, requestModel: string): ReadableStream {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-  return stream.pipeThrough(
-    new TransformStream({
-      transform(chunk, controller) {
-        const text = decoder.decode(chunk, { stream: true });
-        const replaced = text.replace(SSE_MODEL_PATTERN, `"model":"${requestModel}"`);
-        if (replaced) controller.enqueue(encoder.encode(replaced));
-      },
-    }),
-  );
-}
-
-function needsTranslation(
-  protocol: Protocol,
-  providerType: string,
-): boolean {
-  if (protocol === "responses") return true;
-  return (
-    (protocol === "openai" && providerType === "anthropic") ||
-    (protocol === "anthropic" && providerType !== "anthropic")
-  );
-}
-
 export async function execute(
   env: Env,
   provider: ProviderInfo,
   developerBody: Record<string, unknown>,
   requestModel: string | null,
-  protocol: Protocol,
 ): Promise<Response> {
-  const gwRes = (env as any).TEST_MODE === "true"
-    ? await callProviderDirectly(provider, developerBody)
-    : await fetch(buildUrl(env), {
-        method: "POST",
-        headers: buildHeaders(env, provider),
-        body: JSON.stringify(buildBody(provider, developerBody)),
-      });
+  const useGateway = (env as any).GATEWAY_ENABLED === "true" && (env as any).TEST_MODE !== "true";
+  const gwRes = useGateway
+    ? await callProviderViaGateway(env, provider, developerBody)
+    : await callProviderDirectly(provider, developerBody);
 
   if (!gwRes.ok) {
     const err = scrubProviderError(await gwRes.text());
@@ -171,29 +190,17 @@ export async function execute(
     developerBody.stream === true ||
     (gwRes.headers.get("content-type") ?? "").includes("event-stream");
 
-  const translate = needsTranslation(protocol, provider.provider);
+  const needsTranslate = provider.provider !== "openai";
 
   if (isStream) {
     let stream = gwRes.body!;
 
-    if (translate) {
-      if (protocol === "responses") {
-        if (provider.provider === "anthropic") {
-          stream = anthropicSSEToResponses(stream);
-        } else {
-          stream = openaiSSEToResponses(stream);
-        }
-      } else if (protocol === "openai" && provider.provider === "anthropic") {
+    if (needsTranslate) {
+      if (provider.provider === "anthropic") {
         stream = anthropicSSEToOpenAI(stream);
-      } else if (protocol === "anthropic" && provider.provider !== "anthropic") {
-        stream = openaiSSEToAnthropic(stream);
+      } else if (provider.provider === "google-ai-studio") {
+        stream = googleSSEToOpenAI(stream);
       }
-    } else {
-      stream = appendDone(stream);
-    }
-
-    if (requestModel) {
-      stream = patchModelInSSE(stream, requestModel);
     }
 
     return new Response(stream, {
@@ -206,19 +213,13 @@ export async function execute(
     });
   }
 
-  let data = (await gwRes.json()) as Record<string, unknown>;
+  let data = await gwRes.json() as Record<string, unknown>;
 
-  if (translate) {
-    if (protocol === "responses") {
-      if (provider.provider === "anthropic") {
-        data = anthropicToResponsesJSON(data, requestModel);
-      } else {
-        data = openAIToResponsesJSON(data, requestModel);
-      }
-    } else if (protocol === "openai" && provider.provider === "anthropic") {
+  if (needsTranslate) {
+    if (provider.provider === "anthropic") {
       data = anthropicToOpenAIJSON(data, requestModel);
-    } else if (protocol === "anthropic" && provider.provider !== "anthropic") {
-      data = openAIToAnthropicJSON(data);
+    } else if (provider.provider === "google-ai-studio") {
+      data = googleToOpenAIJSON(data, requestModel);
     }
   } else if (requestModel) {
     data.model = requestModel;

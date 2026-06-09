@@ -18,7 +18,7 @@
   "vars": {
     "ACCOUNT_ID": "1c43cf36c63d9acea273e15a9949e2be",
     "APP_URL": "https://infer0.com",
-    "AI_GATEWAY_URL": "https://api.cloudflare.com/client/v4/accounts"
+    "GATEWAY_ID": "default"
   },
   "observability": {
     "enabled": true

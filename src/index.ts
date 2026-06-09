@@ -56,7 +56,30 @@ app.onError((err, c) => {
   const accept = c.req.header("Accept") ?? "";
   const message = err instanceof Error ? err.message : "Internal server error";
   if (accept.includes("text/html")) {
-    return c.html(`<!DOCTYPE html><html><body><p>Error: ${message}</p></body></html>`, 500 as any);
+    return c.html(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Error | infer0</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0b0b09;--text:#d4d4c8;--text-muted:#a09f96;--accent:#d97706}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{text-align:center;padding:48px 24px;max-width:480px}
+h1{font-size:1.5rem;font-weight:700;margin-bottom:8px}
+p{color:var(--text-muted);font-size:0.9375rem;margin-bottom:24px}
+a{display:inline-block;background:var(--accent);color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.875rem}
+code{font-size:0.8125rem;display:block;background:rgba(255,255,255,0.04);padding:12px;border-radius:4px;margin-bottom:24px;word-break:break-all;color:var(--text-muted)}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Something went wrong</h1>
+  <code>${message}</code>
+  <p>Try signing out and signing back in, or go back and try again.</p>
+  <a href="/">Go home</a>
+</div>
+</body>
+</html>`, 500 as any);
   }
   return c.json(
     { error: { message, code: "internal_error" } },

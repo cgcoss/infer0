@@ -16,12 +16,7 @@ function finishReason(stopReason: string): string {
   return stopReason;
 }
 
-function inverseFinishReason(reason: string | undefined | null): string {
-  if (reason === "stop") return "end_turn";
-  if (reason === "length") return "max_tokens";
-  return reason ?? "end_turn";
-}
-
+// Anthropic JSON → OpenAI JSON
 export function anthropicToOpenAIJSON(
   data: Record<string, unknown>,
   requestModel: string | null,
@@ -49,35 +44,6 @@ export function anthropicToOpenAIJSON(
       total_tokens: (anth.usage?.input_tokens ?? 0) + (anth.usage?.output_tokens ?? 0),
     },
   };
-}
-
-export function openAIToAnthropicJSON(
-  data: Record<string, unknown>,
-): Record<string, unknown> {
-  const oai = data as Record<string, unknown>;
-  const choices = (oai.choices as Array<Record<string, unknown>>) ?? [];
-  const choice0 = choices[0] ?? {};
-  const message = (choice0.message as Record<string, unknown>) ?? {};
-  const usage = (oai.usage as Record<string, unknown>) ?? {};
-  const text = (message.content as string) ?? "";
-
-  return {
-    id: oai.id ?? `msg_${crypto.randomUUID()}`,
-    type: "message",
-    role: (message.role as string) ?? "assistant",
-    content: [{ type: "text", text }],
-    model: oai.model,
-    stop_reason: inverseFinishReason(choice0.finish_reason as string | undefined | null),
-    stop_sequence: null,
-    usage: {
-      input_tokens: (usage.prompt_tokens as number) ?? 0,
-      output_tokens: (usage.completion_tokens as number) ?? 0,
-    },
-  };
-}
-
-function finishReasonFromSSE(reason: string | undefined | null): string {
-  return finishReason(reason ?? "");
 }
 
 // Anthropic SSE → OpenAI SSE TransformStream
@@ -177,7 +143,7 @@ export function anthropicSSEToOpenAI(
                         {
                           index: 0,
                           delta: {},
-                          finish_reason: finishReasonFromSSE(delta.stop_reason),
+                          finish_reason: finishReason(delta.stop_reason ?? ""),
                         },
                       ],
                       usage: {
@@ -200,588 +166,134 @@ export function anthropicSSEToOpenAI(
       },
 
       flush(controller) {
-        if (buffer.trim()) {
-          // try to process remaining buffer
-        }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       },
     }),
   );
 }
 
-// OpenAI SSE → Anthropic SSE TransformStream
-export function anthropicToResponsesJSON(
+type GoogleResponse = {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+};
+
+// Google JSON → OpenAI JSON
+export function googleToOpenAIJSON(
   data: Record<string, unknown>,
   requestModel: string | null,
 ): Record<string, unknown> {
-  const anth = data as unknown as AnthropicResponse;
-  const text = (anth.content ?? []).map((c) => c.text).join("");
-  const id = anth.id ?? `resp_${crypto.randomUUID()}`;
-  const messageId = `msg_${id}`;
-
+  const g = data as unknown as GoogleResponse;
+  const text = g.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+  const finish = g.candidates?.[0]?.finishReason ?? "STOP";
+  const usage = g.usageMetadata ?? {};
   return {
-    id,
-    object: "response",
+    id: `chatcmpl-${crypto.randomUUID()}`,
+    object: "chat.completion",
     created: Math.floor(Date.now() / 1000),
-    model: requestModel ?? anth.model,
-    output: [
+    model: requestModel ?? "",
+    choices: [
       {
-        type: "message",
-        id: messageId,
-        role: anth.role,
-        content: [{ type: "output_text", text, annotations: [] }],
+        index: 0,
+        message: { role: "assistant", content: text },
+        finish_reason: finish === "STOP" ? "stop" : finish?.toLowerCase() ?? "stop",
       },
     ],
     usage: {
-      input_tokens: anth.usage?.input_tokens ?? 0,
-      output_tokens: anth.usage?.output_tokens ?? 0,
-      total_tokens:
-        (anth.usage?.input_tokens ?? 0) + (anth.usage?.output_tokens ?? 0),
+      prompt_tokens: usage.promptTokenCount ?? 0,
+      completion_tokens: usage.candidatesTokenCount ?? 0,
+      total_tokens: (usage.promptTokenCount ?? 0) + (usage.candidatesTokenCount ?? 0),
     },
   };
 }
 
-export function openAIToResponsesJSON(
-  data: Record<string, unknown>,
-  requestModel: string | null,
-): Record<string, unknown> {
-  const oai = data as Record<string, unknown>;
-  const choices = (oai.choices as Array<Record<string, unknown>>) ?? [];
-  const choice0 = choices[0] ?? {};
-  const message = (choice0.message as Record<string, unknown>) ?? {};
-  const usage = (oai.usage as Record<string, unknown>) ?? {};
-  const text = (message.content as string) ?? "";
-  const id = (oai.id as string) ?? `resp_${crypto.randomUUID()}`;
-  const messageId = `msg_${id}`;
+function extractGoogleText(parsed: Record<string, unknown>): string | undefined {
+  const candidates = parsed.candidates as Array<Record<string, unknown>> | undefined;
+  return candidates?.[0]?.content &&
+    typeof candidates[0].content === "object"
+    ? ((candidates[0].content as Record<string, unknown>).parts as Array<Record<string, unknown>> | undefined)
+        ?.map((p) => p.text as string)
+        .filter(Boolean)
+        .join("") || undefined
+    : undefined;
+}
 
+function extractGoogleFinishReason(parsed: Record<string, unknown>): string | null {
+  const candidates = parsed.candidates as Array<Record<string, unknown>> | undefined;
+  return (candidates?.[0]?.finishReason as string) ?? null;
+}
+
+function extractGoogleUsage(parsed: Record<string, unknown>): { output?: number; input?: number } {
+  const meta = parsed.usageMetadata as Record<string, unknown> | undefined;
   return {
-    id,
-    object: "response",
-    created: Math.floor(Date.now() / 1000),
-    model: requestModel ?? oai.model,
-    output: [
-      {
-        type: "message",
-        id: messageId,
-        role: (message.role as string) ?? "assistant",
-        content: [{ type: "output_text", text, annotations: [] }],
-      },
-    ],
-    usage: {
-      input_tokens: (usage.prompt_tokens as number) ?? 0,
-      output_tokens: (usage.completion_tokens as number) ?? 0,
-      total_tokens:
-        ((usage.prompt_tokens as number) ?? 0) + ((usage.completion_tokens as number) ?? 0),
-    },
+    output: (meta?.candidatesTokenCount as number) ?? 0,
+    input: (meta?.promptTokenCount as number) ?? 0,
   };
 }
 
-export function anthropicSSEToResponses(
+// Google SSE → OpenAI SSE TransformStream
+export function googleSSEToOpenAI(
   upstreamStream: ReadableStream,
 ): ReadableStream {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
-
-  let responseId = "";
+  let id = `chatcmpl-${crypto.randomUUID()}`;
   let model = "";
-  let messageId = "";
-  let fullText = "";
-  let usageOutput = 0;
-  let created = 0;
-  let hasContentBlock = false;
   let buffer = "";
 
   return upstreamStream.pipeThrough(
     new TransformStream({
       transform(chunk, controller) {
         buffer += decoder.decode(chunk, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
 
-        let currentEvent = "";
-        let currentData = "";
-
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            currentData = line.slice(6).trim();
-          }
-
-          if (currentEvent === "ping") {
-            currentEvent = "";
-            currentData = "";
-            continue;
-          }
-
-          if (!currentEvent || !currentData) continue;
-
-          try {
-            const parsed = JSON.parse(currentData);
-
-            if (currentEvent === "message_start") {
-              const msg = parsed.message ?? {};
-              responseId = msg.id ?? `resp_${crypto.randomUUID()}`;
-              model = msg.model ?? "";
-              messageId = `msg_${responseId}`;
-              created = Math.floor(Date.now() / 1000);
-              fullText = "";
-              hasContentBlock = false;
-              usageOutput = 0;
-
-              const base = {
-                id: responseId,
-                object: "response",
-                created,
-                model,
-                output: [] as any[],
-                usage: null,
-              };
-
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.created\ndata: ${JSON.stringify({ type: "response.created", response: base })}\n\n`,
-                ),
-              );
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.in_progress\ndata: ${JSON.stringify({ type: "response.in_progress", response: base })}\n\n`,
-                ),
-              );
-            } else if (currentEvent === "content_block_start") {
-              if (!hasContentBlock) {
+        for (const block of parts) {
+          const lines = block.split("\n").filter((l) => l.startsWith("data: "));
+          for (const line of lines) {
+            const payload = line.slice(6).trim();
+            if (!payload || payload === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(payload);
+              const text = extractGoogleText(parsed);
+              const finish = extractGoogleFinishReason(parsed);
+              if (text) {
                 controller.enqueue(
                   encoder.encode(
-                    `event: response.output_item.added\ndata: ${JSON.stringify({
-                      type: "response.output_item.added",
-                      output_index: 0,
-                      item: { type: "message", id: messageId, role: "assistant", content: [] },
-                    })}\n\n`,
-                  ),
-                );
-                controller.enqueue(
-                  encoder.encode(
-                    `event: response.content_part.added\ndata: ${JSON.stringify({
-                      type: "response.content_part.added",
-                      output_index: 0,
-                      content_index: 0,
-                      part: { type: "text", text: "" },
-                    })}\n\n`,
-                  ),
-                );
-                hasContentBlock = true;
-              }
-            } else if (currentEvent === "content_block_delta") {
-              const delta = parsed.delta ?? {};
-              if (delta.type === "text_delta" && delta.text) {
-                fullText += delta.text;
-                controller.enqueue(
-                  encoder.encode(
-                    `event: response.output_text.delta\ndata: ${JSON.stringify({
-                      type: "response.output_text.delta",
-                      output_index: 0,
-                      content_index: 0,
-                      delta: delta.text,
-                    })}\n\n`,
-                  ),
-                );
-              }
-            } else if (currentEvent === "content_block_stop") {
-              if (hasContentBlock) {
-                controller.enqueue(
-                  encoder.encode(
-                    `event: response.output_text.done\ndata: ${JSON.stringify({
-                      type: "response.output_text.done",
-                      output_index: 0,
-                      content_index: 0,
-                      text: fullText,
-                    })}\n\n`,
-                  ),
-                );
-                controller.enqueue(
-                  encoder.encode(
-                    `event: response.output_item.done\ndata: ${JSON.stringify({
-                      type: "response.output_item.done",
-                      output_index: 0,
-                      item: {
-                        type: "message",
-                        id: messageId,
-                        role: "assistant",
-                        content: [
-                          { type: "output_text", text: fullText, annotations: [] },
-                        ],
-                      },
-                    })}\n\n`,
-                  ),
-                );
-              }
-            } else if (currentEvent === "message_delta") {
-              const usage = parsed.usage ?? {};
-              usageOutput = usage.output_tokens ?? 0;
-            } else if (currentEvent === "message_stop") {
-              const finalResponse = {
-                id: responseId,
-                object: "response",
-                created,
-                model,
-                output: [
-                  {
-                    type: "message",
-                    id: messageId,
-                    role: "assistant",
-                    content: [{ type: "output_text", text: fullText, annotations: [] }],
-                  },
-                ],
-                usage: {
-                  input_tokens: 0,
-                  output_tokens: usageOutput,
-                  total_tokens: usageOutput,
-                },
-              };
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.completed\ndata: ${JSON.stringify({ type: "response.completed", response: finalResponse })}\n\n`,
-                ),
-              );
-            }
-          } catch {
-            // ignore parse errors
-          }
-
-          currentEvent = "";
-          currentData = "";
-        }
-      },
-      flush(controller) {
-        controller.enqueue(encoder.encode("event: done\ndata: [DONE]\n\n"));
-      },
-    }),
-  );
-}
-
-export function openaiSSEToResponses(
-  upstreamStream: ReadableStream,
-): ReadableStream {
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-
-  let responseId = `resp_${crypto.randomUUID()}`;
-  let model = "";
-  let messageId = `msg_${crypto.randomUUID()}`;
-  let created = Math.floor(Date.now() / 1000);
-  let fullText = "";
-  let hasStarted = false;
-  let isComplete = false;
-  let completionTokens = 0;
-  let buffer = "";
-
-  return upstreamStream.pipeThrough(
-    new TransformStream({
-      transform(chunk, controller) {
-        buffer += decoder.decode(chunk, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          const payload = trimmed.slice(6).trim();
-          if (payload === "[DONE]") continue;
-
-          try {
-            const parsed = JSON.parse(payload);
-            const choices = (parsed.choices as Array<Record<string, unknown>>) ?? [];
-            const choice0 = choices[0] ?? {};
-            const delta = (choice0.delta as Record<string, unknown>) ?? {};
-            const content = (delta.content as string) ?? "";
-            const role = delta.role as string | undefined;
-            const finish = choice0.finish_reason as string | null | undefined;
-            const usage = parsed.usage as Record<string, unknown> | undefined;
-
-            if (usage?.completion_tokens) {
-              completionTokens = usage.completion_tokens as number;
-            }
-
-            if (!hasStarted) {
-              created = Math.floor(Date.now() / 1000);
-              const base = {
-                id: responseId,
-                object: "response",
-                created,
-                model,
-                output: [] as any[],
-                usage: null,
-              };
-
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.created\ndata: ${JSON.stringify({ type: "response.created", response: base })}\n\n`,
-                ),
-              );
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.in_progress\ndata: ${JSON.stringify({ type: "response.in_progress", response: base })}\n\n`,
-                ),
-              );
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.output_item.added\ndata: ${JSON.stringify({
-                    type: "response.output_item.added",
-                    output_index: 0,
-                    item: { type: "message", id: messageId, role: role ?? "assistant", content: [] },
-                  })}\n\n`,
-                ),
-              );
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.content_part.added\ndata: ${JSON.stringify({
-                    type: "response.content_part.added",
-                    output_index: 0,
-                    content_index: 0,
-                    part: { type: "text", text: "" },
-                  })}\n\n`,
-                ),
-              );
-              hasStarted = true;
-            }
-
-            if (content) {
-              fullText += content;
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.output_text.delta\ndata: ${JSON.stringify({
-                    type: "response.output_text.delta",
-                    output_index: 0,
-                    content_index: 0,
-                    delta: content,
-                  })}\n\n`,
-                ),
-              );
-            }
-
-            if (finish && !isComplete) {
-              isComplete = true;
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.output_text.done\ndata: ${JSON.stringify({
-                    type: "response.output_text.done",
-                    output_index: 0,
-                    content_index: 0,
-                    text: fullText,
-                  })}\n\n`,
-                ),
-              );
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.output_item.done\ndata: ${JSON.stringify({
-                    type: "response.output_item.done",
-                    output_index: 0,
-                    item: {
-                      type: "message",
-                      id: messageId,
-                      role: "assistant",
-                      content: [{ type: "output_text", text: fullText, annotations: [] }],
-                    },
-                  })}\n\n`,
-                ),
-              );
-
-              const finalResponse = {
-                id: responseId,
-                object: "response",
-                created,
-                model,
-                output: [
-                  {
-                    type: "message",
-                    id: messageId,
-                    role: "assistant",
-                    content: [{ type: "output_text", text: fullText, annotations: [] }],
-                  },
-                ],
-                usage: {
-                  input_tokens: 0,
-                  output_tokens: completionTokens,
-                  total_tokens: completionTokens,
-                },
-              };
-              controller.enqueue(
-                encoder.encode(
-                  `event: response.completed\ndata: ${JSON.stringify({ type: "response.completed", response: finalResponse })}\n\n`,
-                ),
-              );
-            }
-          } catch {
-            // ignore parse errors
-          }
-        }
-      },
-      flush(controller) {
-        if (!hasStarted) {
-          controller.enqueue(
-            encoder.encode(
-              `event: response.created\ndata: ${JSON.stringify({
-                type: "response.created",
-                response: { id: responseId, object: "response", created, model: "", output: [], usage: null },
-              })}\n\n`,
-            ),
-          );
-          controller.enqueue(
-            encoder.encode(
-              `event: response.completed\ndata: ${JSON.stringify({
-                type: "response.completed",
-                response: { id: responseId, object: "response", created, model: "", output: [], usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 } },
-              })}\n\n`,
-            ),
-          );
-        }
-        controller.enqueue(encoder.encode("event: done\ndata: [DONE]\n\n"));
-      },
-    }),
-  );
-}
-
-export function openaiSSEToAnthropic(
-  upstreamStream: ReadableStream,
-): ReadableStream {
-  const decoder = new TextDecoder();
-  const encoder = new TextEncoder();
-
-  let id = crypto.randomUUID();
-  let model = "";
-  let contentAccumulated = false;
-  let usageOutput = 0;
-  let buffer = "";
-
-  return upstreamStream.pipeThrough(
-    new TransformStream({
-      transform(chunk, controller) {
-        buffer += decoder.decode(chunk, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          const payload = trimmed.slice(6).trim();
-          if (payload === "[DONE]") continue;
-
-          try {
-            const parsed = JSON.parse(payload);
-            const choices = parsed.choices ?? [];
-            const choice0 = choices[0] ?? {};
-            const delta = choice0.delta ?? {};
-            const finish = choice0.finish_reason;
-
-            if (!contentAccumulated) {
-              id = parsed.id ?? id;
-              model = parsed.model ?? model;
-
-              controller.enqueue(
-                encoder.encode(
-                  `event: message_start\ndata: ${JSON.stringify({
-                    type: "message_start",
-                    message: {
-                      id: `msg_${id}`,
-                      type: "message",
-                      role: "assistant",
-                      content: [],
+                    `data: ${JSON.stringify({
+                      id,
+                      object: "chat.completion.chunk",
+                      created: Math.floor(Date.now() / 1000),
                       model,
-                      stop_reason: null,
-                      stop_sequence: null,
-                      usage: { input_tokens: 0, output_tokens: 0 },
-                    },
-                  })}\n\n`,
-                ),
-              );
-
-              controller.enqueue(
-                encoder.encode(
-                  `event: content_block_start\ndata: ${JSON.stringify({
-                    type: "content_block_start",
-                    index: 0,
-                    content_block: { type: "text", text: "" },
-                  })}\n\n`,
-                ),
-              );
-
-              contentAccumulated = true;
-            }
-
-            const text = delta.content ?? "";
-            if (text) {
-              controller.enqueue(
-                encoder.encode(
-                  `event: content_block_delta\ndata: ${JSON.stringify({
-                    type: "content_block_delta",
-                    index: 0,
-                    delta: { type: "text_delta", text },
-                  })}\n\n`,
-                ),
-              );
-            }
-
-            if (parsed.usage?.completion_tokens) {
-              usageOutput = parsed.usage.completion_tokens;
-            }
-
-            if (finish) {
-              controller.enqueue(
-                encoder.encode(
-                  `event: content_block_stop\ndata: ${JSON.stringify({
-                    type: "content_block_stop",
-                    index: 0,
-                  })}\n\n`,
-                ),
-              );
-
-              controller.enqueue(
-                encoder.encode(
-                  `event: message_delta\ndata: ${JSON.stringify({
-                    type: "message_delta",
-                    delta: {
-                      stop_reason: inverseFinishReason(finish),
-                      stop_sequence: null,
-                    },
-                    usage: { output_tokens: usageOutput },
-                  })}\n\n`,
-                ),
-              );
-
-              controller.enqueue(
-                encoder.encode(
-                  `event: message_stop\ndata: ${JSON.stringify({
-                    type: "message_stop",
-                  })}\n\n`,
-                ),
-              );
-            }
-          } catch {
-            // ignore parse errors
+                      choices: [{ index: 0, delta: { content: text }, finish_reason: null }],
+                    })}\n\n`,
+                  ),
+                );
+              }
+              if (finish) {
+                const usage = extractGoogleUsage(parsed);
+                const i = usage.input || 0;
+                const o = usage.output || 0;
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      id,
+                      object: "chat.completion.chunk",
+                      created: Math.floor(Date.now() / 1000),
+                      model,
+                      choices: [{ index: 0, delta: {}, finish_reason: finish === "STOP" ? "stop" : finish.toLowerCase() }],
+                      usage: { prompt_tokens: i, completion_tokens: o, total_tokens: i + o },
+                    })}\n\n`,
+                  ),
+                );
+              }
+            } catch { /* ignore */ }
           }
         }
       },
-
       flush(controller) {
-        if (!contentAccumulated) {
-          controller.enqueue(
-            encoder.encode(
-              `event: message_start\ndata: ${JSON.stringify({
-                type: "message_start",
-                message: {
-                  id: `msg_${id}`,
-                  type: "message",
-                  role: "assistant",
-                  content: [],
-                  model,
-                  stop_reason: null,
-                  stop_sequence: null,
-                  usage: { input_tokens: 0, output_tokens: 0 },
-                },
-              })}\n\n`,
-            ),
-          );
-        }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       },
     }),

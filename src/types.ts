@@ -1,5 +1,6 @@
 export type Env = Cloudflare.Env & {
   TEST_MODE?: string;
+  GATEWAY_ID?: string;
 };
 
 export interface User {

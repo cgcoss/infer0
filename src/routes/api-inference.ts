@@ -2,7 +2,7 @@ import { Hono, type Context } from "hono";
 import type { Env } from "../types";
 import { verifyToken } from "../lib/auth";
 import { getUserProvider } from "./api-providers";
-import { getProtocol, extractRequestModel, normalizeResponsesBody } from "../lib/normalize";
+import { extractRequestModel } from "../lib/normalize";
 import { execute } from "../lib/gateway";
 
 export const inferenceRoutes = new Hono<{ Bindings: Env }>();
@@ -49,9 +49,11 @@ async function handleInference(c: AppContext): Promise<Response> {
   }
 
   const oauthAuth = await c.env.DB.prepare(
-    `SELECT oa.provider_config_id, oa.oauth_app_id, oa.revoked_at, app.name as app_name
+    `SELECT oa.oauth_app_id, oa.revoked_at, app.name as app_name,
+            COALESCE(aa.provider_config_id, oa.provider_config_id) as provider_config_id
      FROM oauth_authorizations oa
      JOIN oauth_apps app ON app.id = oa.oauth_app_id
+     LEFT JOIN authorized_apps aa ON aa.user_id = oa.user_id AND aa.oauth_app_id = oa.oauth_app_id
      WHERE oa.id = ? AND oa.user_id = ?`,
   ).bind(auth.oauthAuthorizationId, auth.userId).first<{
     provider_config_id: string | null;
@@ -71,11 +73,6 @@ async function handleInference(c: AppContext): Promise<Response> {
 
   const body: Record<string, unknown> = await c.req.json();
   const requestModel = extractRequestModel(body);
-  const protocol = getProtocol(c.req.path);
-
-  if (protocol === "responses") {
-    normalizeResponsesBody(body, provider.provider);
-  }
 
   try {
     await c.env.DB.prepare(
@@ -85,16 +82,13 @@ async function handleInference(c: AppContext): Promise<Response> {
          revoked_at = NULL,
          last_used_at = datetime('now'),
          expires_at = datetime(? / 1000, 'unixepoch'),
-         developer_name = CASE WHEN authorized_apps.developer_name = '' THEN ? ELSE authorized_apps.developer_name END,
-         provider_config_id = ?`,
-    ).bind(crypto.randomUUID(), auth.userId, oauthAuth.oauth_app_id, "oauth", oauthAuth.app_name, oauthAuth.provider_config_id ?? null, Date.now() + 3600000, Date.now() + 3600000, oauthAuth.app_name, oauthAuth.provider_config_id ?? null).run();
+         developer_name = CASE WHEN authorized_apps.developer_name = '' THEN ? ELSE authorized_apps.developer_name END`,
+    ).bind(crypto.randomUUID(), auth.userId, oauthAuth.oauth_app_id, "oauth", oauthAuth.app_name, oauthAuth.provider_config_id ?? null, Date.now() + 3600000, Date.now() + 3600000, oauthAuth.app_name).run();
   } catch (err) {
     console.error("Failed to record authorization:", err);
   }
 
-  return execute(c.env, provider, body, requestModel, protocol);
+  return execute(c.env, provider, body, requestModel);
 }
 
 inferenceRoutes.post("/v1/chat/completions", handleInference);
-inferenceRoutes.post("/v1/messages", handleInference);
-inferenceRoutes.post("/v1/responses", handleInference);

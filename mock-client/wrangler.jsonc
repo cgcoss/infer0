@@ -3,10 +3,10 @@
   "name": "infer0-test-client",
   "main": "src/index.ts",
   "compatibility_date": "2025-03-03",
-  "compatibility_flags": ["global_fetch_strictly_public"],
+  "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
   "vars": {
     "INFER0_API": "https://infer0.com",
-    "CLIENT_ID": "test-client-001",
-    "CLIENT_SECRET": "527c1973a28b62e81e9e3824694f6563cea2aba7e4b7b4f9f1c9a8b7f5c48f14"
+    "CLIENT_ID": "9fd68de0-b1c9-4602-96fa-c19b04f59ba7",
+    "CLIENT_SECRET": "62afe316e6120052b862a008ea50e44895690a4269b3a8ad5fcabd3ac88eb578"
   }
 }

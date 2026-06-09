@@ -75,7 +75,7 @@ grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&clie
         <section>
           <h2>4. Inference</h2>
 
-          <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Three API endpoints are available. Pick the one that matches your preferred SDK format. The response always matches the request protocol, regardless of which upstream provider handles it.</p>
+          <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Send your request in OpenAI Chat Completions format. infer0 translates the response from the upstream provider back to OpenAI format, regardless of which provider handles it.</p>
 
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
@@ -127,105 +127,6 @@ const chat = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello" }],
 });</code></pre>
           </div>
-
-          <div class="endpoint">
-            <h3><span class="method post">POST</span><span class="path">/v1/messages</span></h3>
-            <p style="margin:0 0 12px 0">Anthropic Messages format.</p>
-
-            <pre><code class="language-http">POST https://infer0.com/v1/messages
-Authorization: Bearer &lt;access_token&gt;
-Content-Type: application/json
-anthropic-version: 2023-06-01
-
-{
-  "messages": [
-    { "role": "user", "content": "Hello" }
-  ]
-}</code></pre>
-
-            <pre><code class="language-json">HTTP 200
-
-{
-  "id": "msg_xxx",
-  "type": "message",
-  "role": "assistant",
-  "content": [
-    {
-      "type": "text",
-      "text": "Hello! How can I help you today?"
-    }
-  ],
-  "model": "claude-sonnet-4-20250514",
-  "stop_reason": "end_turn",
-  "usage": {
-    "input_tokens": 10,
-    "output_tokens": 9
-  }
-}</code></pre>
-
-            <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the Anthropic SDK:</p>
-            <pre><code class="language-javascript">import Anthropic from "@anthropic-ai/sdk";
-
-const client = new Anthropic({
-  baseURL: "https://infer0.com/v1",
-  apiKey: "&lt;access_token&gt;",
-});
-
-const message = await client.messages.create({
-  messages: [{ role: "user", content: "Hello" }],
-});</code></pre>
-          </div>
-
-          <div class="endpoint">
-            <h3><span class="method post">POST</span><span class="path">/v1/responses</span></h3>
-            <p style="margin:0 0 12px 0">OpenAI Responses API format.</p>
-
-            <pre><code class="language-http">POST https://infer0.com/v1/responses
-Authorization: Bearer &lt;access_token&gt;
-Content-Type: application/json
-
-{
-  "input": "Hello"
-}</code></pre>
-
-            <pre><code class="language-json">HTTP 200
-
-{
-  "id": "resp_xxx",
-  "object": "response",
-  "created_at": 1718000000,
-  "model": "gpt-4o-mini",
-  "output": [
-    {
-      "type": "message",
-      "role": "assistant",
-      "content": [
-        {
-          "type": "output_text",
-          "text": "Hello! How can I help you today?"
-        }
-      ]
-    }
-  ],
-  "usage": {
-    "input_tokens": 10,
-    "output_tokens": 9,
-    "total_tokens": 19
-  }
-}</code></pre>
-
-            <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the OpenAI SDK:</p>
-            <pre><code class="language-javascript">import OpenAI from "openai";
-
-const client = new OpenAI({
-  baseURL: "https://infer0.com/v1",
-  apiKey: "&lt;access_token&gt;",
-});
-
-const response = await client.responses.create({
-  input: "Hello",
-});</code></pre>
-          </div>
         </section>
 
         <section>
@@ -241,13 +142,8 @@ const response = await client.responses.create({
             </tr>
             <tr>
               <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>messages</code></td>
-              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/chat/completions</code>, <code>/v1/messages</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/chat/completions</code></td>
               <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">Array of message objects with <code>role</code> and <code>content</code>.</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>input</code></td>
-              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/responses</code></td>
-              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">String or array of input items. The prompt content.</td>
             </tr>
             <tr>
               <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>model</code></td>
@@ -265,15 +161,13 @@ const response = await client.responses.create({
         <section>
           <h2>6. How model selection works</h2>
 
-          <p>infer0 supports multiple API formats (OpenAI Chat, Anthropic Messages, OpenAI Responses). Regardless of which format you use, the <code>model</code> field value you send is ignored. The actual model is determined by each user's provider configuration, not by your app.</p>
+          <p>Your app always uses the OpenAI Chat Completions format. The <code>model</code> field value you send is ignored. The actual model is determined by each user's provider configuration, not by your app.</p>
 
           <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">Requested vs actual model</h3>
 
-          <pre><code class="language-plaintext">// Your app always sends the same request format:
-POST /v1/chat/completions  (OpenAI SDK)
-POST /v1/messages          (Anthropic SDK)
-POST /v1/responses         (OpenAI Responses SDK)
-{ "model": "ignored", "input/messages": [...] }
+          <pre><code class="language-plaintext">// Your app always sends the same request:
+POST /v1/chat/completions
+{ "model": "ignored", "messages": [...] }
 
 // User A has OpenAI / gpt-4o-mini
 // infer0 routes to: OpenAI gpt-4o-mini

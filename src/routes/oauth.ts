@@ -109,9 +109,22 @@ oauthRoutes.post("/v1/oauth/apps", requireAuth, async (c) => {
   const id = crypto.randomUUID();
   const secret = generateSecret();
 
-  await c.env.DB.prepare(
-    "INSERT INTO oauth_apps (id, developer_id, name, redirect_uri, client_secret) VALUES (?, ?, ?, ?, ?)",
-  ).bind(id, user.id, name, redirectUri, secret).run();
+  try {
+    await c.env.DB.prepare(
+      "INSERT INTO oauth_apps (id, developer_id, name, redirect_uri, client_secret) VALUES (?, ?, ?, ?, ?)",
+    ).bind(id, user.id, name, redirectUri, secret).run();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.html(
+      `<html><body style="font-family:system-ui;padding:48px;max-width:480px;margin:0 auto;background:#0b0b09;color:#d4d4c8">
+        <h1>Failed to register app</h1>
+        <p style="color:#a09f96">${message}</p>
+        <p style="color:#a09f96">Try signing out and signing back in, then try again.</p>
+        <a href="/login" style="color:#d97706">Sign in</a>
+      </body></html>`,
+      500,
+    );
+  }
 
   return c.redirect("/dev/apps?new_secret=" + encodeURIComponent(secret));
 });
@@ -121,21 +134,33 @@ oauthRoutes.post("/v1/oauth/apps/:id/reset-secret", requireAuth, async (c) => {
   const user = c.get("user");
   const appId = c.req.param("id");
 
-  const app = await c.env.DB.prepare(
-    "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ?",
-  ).bind(appId, user.id).first();
+  try {
+    const app = await c.env.DB.prepare(
+      "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ?",
+    ).bind(appId, user.id).first();
 
-  if (!app) {
-    return c.json({ error: { message: "App not found", code: "not_found" } }, 404);
+    if (!app) {
+      return c.json({ error: { message: "App not found", code: "not_found" } }, 404);
+    }
+
+    const newSecret = generateSecret();
+
+    await c.env.DB.prepare(
+      "UPDATE oauth_apps SET client_secret = ? WHERE id = ?",
+    ).bind(newSecret, appId).run();
+
+    return c.redirect("/dev/apps?new_secret=" + encodeURIComponent(newSecret));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return c.html(
+      `<html><body style="font-family:system-ui;padding:48px;max-width:480px;margin:0 auto;background:#0b0b09;color:#d4d4c8">
+        <h1>Something went wrong</h1>
+        <p style="color:#a09f96">${message}</p>
+        <a href="/dev/apps" style="color:#d97706">Back to apps</a>
+      </body></html>`,
+      500,
+    );
   }
-
-  const newSecret = generateSecret();
-
-  await c.env.DB.prepare(
-    "UPDATE oauth_apps SET client_secret = ? WHERE id = ?",
-  ).bind(newSecret, appId).run();
-
-  return c.redirect("/dev/apps?new_secret=" + encodeURIComponent(newSecret));
 });
 
 // OAuth authorize endpoint
