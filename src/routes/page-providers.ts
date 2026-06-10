@@ -47,7 +47,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
             ${p.is_default ? html`<span class="badge badge-default" style="margin-left:8px">default</span>` : ""}
             ${isPaused
               ? html`<span class="badge" style="margin-left:8px;background:#d97706;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Paused</span>`
-              : exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
+              : exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Exceeded</span>` : ""}
           </div>
           ${p.name ? html`<div class="card-sub">${p.name}</div>` : ""}
           <div class="card-divider"></div>

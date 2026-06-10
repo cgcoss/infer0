@@ -69,7 +69,7 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
               : isPaused
                 ? html`<span class="badge" style="float:right;background:#d97706;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Paused</span>`
                 : html`<span class="badge badge-active" style="float:right">Active</span>`}
-            ${exceeded && !isPaused ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
+            ${exceeded && !isPaused ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Exceeded</span>` : ""}
           </div>
           <div class="card-row">
             <span class="card-label">Provider</span>
