@@ -16,14 +16,6 @@ export default {
       return handleChatStream(request, env);
     }
 
-    if (url.pathname === "/api/raw-debug" && request.method === "POST") {
-      return handleRawDebug(request, env);
-    }
-
-    if (url.pathname === "/api/debug" && request.method === "POST") {
-      return handleDebug(request, env);
-    }
-
     if (url.pathname === "/") {
       return new Response(renderHTML(env.CLIENT_ID), { headers: { "Content-Type": "text/html" } });
     }
@@ -74,36 +66,6 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return new Response(`Callback error: ${msg}`, { status: 500 });
-  }
-}
-
-async function handleRawDebug(request: Request, env: Env): Promise<Response> {
-  try {
-    const { accessToken, messages } = await request.json<{
-      accessToken: string;
-      messages: Array<{ role: string; content: string }>;
-    }>();
-
-    const gwRes = await fetch(`${env.INFER0_API}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ messages, stream: true }),
-    });
-
-    const contentType = gwRes.headers.get("content-type") ?? "";
-    const body = await gwRes.text();
-
-    return Response.json({
-      status: gwRes.status,
-      contentType,
-      bodyLength: body.length,
-      preview: body.slice(0, 5000),
-    });
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
 
@@ -207,7 +169,6 @@ async function handleChatStream(request: Request, env: Env): Promise<Response> {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
-        "X-Debug-Body-Size": String(bodySize),
       },
     });
   } catch (e) {
@@ -215,36 +176,6 @@ async function handleChatStream(request: Request, env: Env): Promise<Response> {
       { error: { message: e instanceof Error ? e.message : "Unknown error" } },
       { status: 500 },
     );
-  }
-}
-
-async function handleDebug(request: Request, env: Env): Promise<Response> {
-  try {
-    const { accessToken, messages } = await request.json<{
-      accessToken: string;
-      messages: Array<{ role: string; content: string }>;
-    }>();
-
-    const gwRes = await fetch(`${env.INFER0_API}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ messages, stream: true }),
-    });
-
-    const contentType = gwRes.headers.get("content-type") ?? "";
-    const body = await gwRes.text();
-
-    return Response.json({
-      status: gwRes.status,
-      contentType,
-      bodyLength: body.length,
-      bodyPreview: body.slice(0, 2000),
-    });
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
 
@@ -316,10 +247,8 @@ for await (const chunk of stream) {
   <div class="input-row">
     <input type="text" id="message" placeholder="Type a message..." autocomplete="off" />
     <button id="send-btn">Send</button>
-    <button id="debug-btn" style="background:#444" title="Show raw infer0 response">Debug</button>
   </div>
 </div>
-<pre id="debug-panel" style="display:none;margin-top:12px;background:#1c1c1f;border:1px solid #27272a;border-radius:8px;padding:12px;font-size:0.7rem;overflow-x:auto;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></pre>
 </div>
 
 <script>
@@ -364,12 +293,6 @@ function addMessage(role, content) {
   return contentDiv;
 }
 
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
 sendBtn.addEventListener('click', async () => {
   const text = messageInput.value.trim();
 
@@ -408,7 +331,6 @@ sendBtn.addEventListener('click', async () => {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let sawData = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -423,7 +345,6 @@ sendBtn.addEventListener('click', async () => {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6);
           if (data === '[DONE]') continue;
-          sawData = true;
             try {
               const json = JSON.parse(data);
               if (json.error) {
@@ -441,12 +362,6 @@ sendBtn.addEventListener('click', async () => {
         }
       }
     }
-
-    if (!sawData && !responseText) {
-      contentDiv.textContent = 'Empty response (status: ' + res.status + ', type: ' + res.headers.get('content-type') + ', size: ' + res.headers.get('x-debug-body-size') + ', raw: ' + buffer.slice(0, 500) + ')';
-      contentDiv.className = 'msg error';
-      responseText = 'Empty response';
-    }
   } catch (e) {
     contentDiv.textContent += '\\n[Network error: ' + e.message + ']';
     responseText += '\\n[Network error: ' + e.message + ']';
@@ -463,27 +378,6 @@ messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendBtn.click();
-  }
-});
-
-document.getElementById('debug-btn').addEventListener('click', async () => {
-  const panel = document.getElementById('debug-panel');
-  if (panel.style.display === 'block') {
-    panel.style.display = 'none';
-    return;
-  }
-  panel.style.display = 'block';
-  panel.textContent = 'Sending raw debug request...';
-  try {
-    const res = await fetch('/api/raw-debug', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken, messages: messages.slice(-1) }),
-    });
-    const data = await res.json();
-    panel.textContent = JSON.stringify(data, null, 2);
-  } catch (e) {
-    panel.textContent = 'Debug error: ' + e.message;
   }
 });
 </script>
