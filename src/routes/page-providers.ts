@@ -45,7 +45,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
           <div class="card-title">
             ${p.provider}
             ${p.model ? html`
-              <span class="model-display" data-id="${p.id}" data-provider="${p.provider}">&middot; ${p.model}</span>
+              <span class="model-display" data-id="${p.id}" data-provider="${p.provider}" style="cursor:pointer;border-bottom:1px dashed var(--text-muted)" title="Click to change model">&middot; ${p.model}</span>
               <select class="model-select" data-id="${p.id}" style="display:none"></select>
             ` : ""}
             ${p.is_default ? html`<span class="badge badge-default" style="margin-left:8px">default</span>` : ""}
@@ -195,7 +195,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
 
   const MODELS = {
     openai: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5", "gpt-5-mini", "gpt-5-chat", "gpt-5-nano", "gpt-5.1", "gpt-5.1-chat", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-pro", "gpt-5.4-nano", "gpt-5.5", "gpt-5.5-pro", "gpt-oss-20b", "gpt-oss-120b", "o3", "o3-mini", "o4-mini"],
-    anthropic: ["claude-sonnet-4", "claude-sonnet-4.5", "claude-sonnet-4.6", "claude-haiku-4.5", "claude-opus-4.5", "claude-opus-4.6", "claude-opus-4.7", "claude-opus-4.8", "claude-fable-5"],
+    anthropic: ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-sonnet-4", "claude-haiku-4-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-1", "claude-fable-5", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"],
     "google-ai-studio": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemma-3-12b-it", "gemma-4-26b-a4b-it", "gemma-7b-it", "gemma-2b-it", "gemma-7b-it-lora"],
   };
   function updateModels() {
