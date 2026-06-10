@@ -19,9 +19,9 @@ export function HomeView({ user }: HomeViewProps) {
             infer0 routes to whichever provider each user chooses.
           </p>
           <div style="margin:28px auto;max-width:420px;text-align:left;font-size:0.875rem;line-height:2.2">
-            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">01</span> Users add AI Providers (OpenAI, Anthropic, Google) and set daily spend limits.</div>
-            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">02</span> Authorized apps use the user's provider without ever seeing their keys.</div>
-            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">03</span> Users control spend and access per authorization from their dashboard.</div>
+            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">01</span> Connect AI providers. Set daily spend limits.</div>
+            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">02</span> Apps use your AI provider. Never see your keys.</div>
+            <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">03</span> Per-app spend limits. Pause or revoke anytime.</div>
           </div>
           <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
             <a href="/login" class="btn-primary">Start building</a>
