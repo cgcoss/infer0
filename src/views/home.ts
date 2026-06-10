@@ -28,6 +28,7 @@ export function HomeView({ user }: HomeViewProps) {
           </div>
           <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
             <a href="/login" class="btn-primary">Start building</a>
+            <a href="https://test-client.infer0.com" class="btn-secondary" target="_blank">Try the demo</a>
             <a href="/docs" class="btn-secondary">Read the docs</a>
           </div>
         </section>
