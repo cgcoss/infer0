@@ -424,7 +424,7 @@ export function Layout({ title, user, children }: LayoutProps) {
                     <div class="dropdown-header">${user.email}</div>
                     <a href="/providers">AI Providers</a>
                     <a href="/services">Authorizations</a>
-                    <a href="/dev/apps">OAuth Apps</a>
+                    <a href="/dev/apps">Developer Settings</a>
                     <div class="dropdown-divider"></div>
                     <a href="/logout">Sign out</a>
                   </div>
@@ -433,7 +433,7 @@ export function Layout({ title, user, children }: LayoutProps) {
                   <div class="mobile-user-header">${user.email}</div>
                   <a href="/providers" class="mobile-user-link">AI Providers</a>
                   <a href="/services" class="mobile-user-link">Authorizations</a>
-                  <a href="/dev/apps" class="mobile-user-link">OAuth Apps</a>
+                  <a href="/dev/apps" class="mobile-user-link">Developer Settings</a>
                   <div class="mobile-divider"></div>
                   <a href="/logout" class="mobile-user-link">Sign out</a>
                 </div>
