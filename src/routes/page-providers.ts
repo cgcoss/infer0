@@ -43,7 +43,19 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
         return html`
         <div class="record-card" style="${exceeded || isPaused ? 'opacity:0.6' : ''}">
           <div class="card-title">
-            ${p.provider}${p.model ? html` &middot; ${p.model}` : ""}
+            ${p.provider}
+            ${p.model ? html`
+              <span class="model-display" data-id="${p.id}" data-provider="${p.provider}">
+                &middot; <span class="model-name" data-id="${p.id}">${p.model}</span>
+                <button class="btn-edit-model" data-id="${p.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;padding:0;margin-left:2px">&#9998;</button>
+              </span>
+              <span class="model-editor" data-id="${p.id}" style="display:none">
+                &middot; <input type="text" class="model-edit-input" data-id="${p.id}" list="model-edit-suggestions-${p.id}" value="${p.model}" style="width:180px;background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:2px 6px;color:var(--text);font-size:0.8125rem" />
+                <datalist id="model-edit-suggestions-${p.id}"></datalist>
+                <button class="btn-save-model" data-id="${p.id}" style="background:var(--accent);color:#fff;border:none;padding:2px 8px;border-radius:4px;font-size:0.7rem;cursor:pointer">Save</button>
+                <button class="btn-cancel-model" data-id="${p.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;margin-left:4px">Cancel</button>
+              </span>
+            ` : ""}
             ${p.is_default ? html`<span class="badge badge-default" style="margin-left:8px">default</span>` : ""}
             ${isPaused
               ? html`<span class="badge" style="margin-left:8px;background:#d97706;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Paused</span>`
@@ -135,6 +147,61 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
   });
   </script>
   <script>
+  function populateModelList(listId, provider) {
+    var list = document.getElementById(listId);
+    list.innerHTML = "";
+    (MODELS[provider] || []).forEach(function(m) { var o = document.createElement("option"); o.value = m; list.appendChild(o); });
+  }
+
+  document.querySelectorAll('.btn-edit-model').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.dataset.id;
+      document.querySelector('.model-display[data-id="' + id + '"]').style.display = 'none';
+      document.querySelector('.model-editor[data-id="' + id + '"]').style.display = 'inline';
+      var provider = document.querySelector('.model-display[data-id="' + id + '"]').dataset.provider;
+      populateModelList('model-edit-suggestions-' + id, provider);
+      var input = document.querySelector('.model-edit-input[data-id="' + id + '"]');
+      input.focus();
+      input.select();
+    });
+  });
+
+  document.querySelectorAll('.btn-save-model').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      var id = btn.dataset.id;
+      var input = document.querySelector('.model-edit-input[data-id="' + id + '"]');
+      var model = input.value.trim();
+      await fetch('/v1/providers/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: model }),
+      });
+      location.reload();
+    });
+  });
+
+  document.querySelectorAll('.btn-cancel-model').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var id = btn.dataset.id;
+      document.querySelector('.model-display[data-id="' + id + '"]').style.display = 'inline';
+      document.querySelector('.model-editor[data-id="' + id + '"]').style.display = 'none';
+      var input = document.querySelector('.model-edit-input[data-id="' + id + '"]');
+      var original = document.querySelector('.model-name[data-id="' + id + '"]');
+      input.value = original ? original.textContent : '';
+    });
+  });
+
+  document.querySelectorAll('.model-edit-input').forEach(function(input) {
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        document.querySelector('.btn-save-model[data-id="' + input.dataset.id + '"]').click();
+      } else if (e.key === 'Escape') {
+        document.querySelector('.btn-cancel-model[data-id="' + input.dataset.id + '"]').click();
+      }
+    });
+  });
+
   const MODELS = {
     openai: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5", "gpt-5-mini", "gpt-5-chat", "gpt-5-nano", "gpt-5.1", "gpt-5.1-chat", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-pro", "gpt-5.4-nano", "gpt-5.5", "gpt-5.5-pro", "gpt-oss-20b", "gpt-oss-120b", "o3", "o3-mini", "o4-mini"],
     anthropic: ["claude-sonnet-4", "claude-sonnet-4.5", "claude-sonnet-4.6", "claude-haiku-4.5", "claude-opus-4.5", "claude-opus-4.6", "claude-opus-4.7", "claude-opus-4.8", "claude-fable-5"],
