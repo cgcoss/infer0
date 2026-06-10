@@ -76,6 +76,7 @@ CREATE TABLE oauth_apps (
   name TEXT NOT NULL,
   redirect_uri TEXT NOT NULL,
   client_secret TEXT NOT NULL,
+  deleted_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (developer_id) REFERENCES users(id)
 );

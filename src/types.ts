@@ -61,6 +61,7 @@ export interface OAuthApp {
   name: string;
   redirect_uri: string;
   client_secret: string;
+  deleted_at: string | null;
   created_at: string;
 }
 

@@ -21,7 +21,7 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
   const newSecret = c.req.query("new_secret");
 
   const { results } = await c.env.DB.prepare(
-    "SELECT id, name, redirect_uri, client_secret, created_at FROM oauth_apps WHERE developer_id = ? ORDER BY created_at DESC",
+    "SELECT id, name, redirect_uri, client_secret, deleted_at, created_at FROM oauth_apps WHERE developer_id = ? AND deleted_at IS NULL ORDER BY created_at DESC",
   ).bind(user.id).all();
 
   return c.html(Layout({
@@ -87,6 +87,9 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
           <div class="card-actions">
             <form method="POST" action="/v1/oauth/apps/${app.id}/reset-secret" style="display:inline">
               <button type="submit" style="background:transparent;border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:var(--radius);font-size:0.8125rem;cursor:pointer">Reset Secret</button>
+            </form>
+            <form method="POST" action="/v1/oauth/apps/${app.id}/delete" style="display:inline" onsubmit="return confirm('Delete this app? Existing authorizations will no longer work. This cannot be undone.');">
+              <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.8125rem">Delete</button>
             </form>
           </div>
         </div>
@@ -202,7 +205,7 @@ oauthRoutes.post("/v1/oauth/apps/:id/reset-secret", requireAuth, async (c) => {
 
   try {
     const app = await c.env.DB.prepare(
-      "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ?",
+      "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ? AND deleted_at IS NULL",
     ).bind(appId, user.id).first();
 
     if (!app) {
@@ -236,7 +239,7 @@ oauthRoutes.put("/v1/oauth/apps/:id", requireAuth, async (c) => {
   const body = await c.req.json<{ redirect_uri?: string; name?: string }>();
 
   const app = await c.env.DB.prepare(
-    "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ?",
+    "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ? AND deleted_at IS NULL",
   ).bind(appId, user.id).first();
 
   if (!app) {
@@ -256,6 +259,26 @@ oauthRoutes.put("/v1/oauth/apps/:id", requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
+// Soft delete OAuth app
+oauthRoutes.post("/v1/oauth/apps/:id/delete", requireAuth, async (c) => {
+  const user = c.get("user");
+  const appId = c.req.param("id");
+
+  const app = await c.env.DB.prepare(
+    "SELECT id FROM oauth_apps WHERE id = ? AND developer_id = ? AND deleted_at IS NULL",
+  ).bind(appId, user.id).first();
+
+  if (!app) {
+    return c.json({ error: { message: "App not found", code: "not_found" } }, 404);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE oauth_apps SET deleted_at = datetime('now') WHERE id = ?",
+  ).bind(appId).run();
+
+  return c.redirect("/dev/apps");
+});
+
 // OAuth authorize endpoint
 oauthRoutes.get("/oauth/authorize", async (c) => {
   const clientId = c.req.query("client_id");
@@ -268,7 +291,7 @@ oauthRoutes.get("/oauth/authorize", async (c) => {
 
   // Validate the app
   const app = await c.env.DB.prepare(
-    "SELECT id, name FROM oauth_apps WHERE id = ?",
+    "SELECT id, name FROM oauth_apps WHERE id = ? AND deleted_at IS NULL",
   ).bind(clientId).first<{ id: string; name: string }>();
 
   if (!app) {
@@ -277,7 +300,7 @@ oauthRoutes.get("/oauth/authorize", async (c) => {
 
   // Check if redirect_uri matches
   const appFull = await c.env.DB.prepare(
-    "SELECT * FROM oauth_apps WHERE id = ? AND redirect_uri = ?",
+    "SELECT * FROM oauth_apps WHERE id = ? AND redirect_uri = ? AND deleted_at IS NULL",
   ).bind(clientId, redirectUri).first();
 
   if (!appFull) {
@@ -379,7 +402,7 @@ oauthRoutes.post("/oauth/authorize", async (c) => {
 
     // Validate app
     const app = await c.env.DB.prepare(
-      "SELECT id FROM oauth_apps WHERE id = ? AND redirect_uri = ?",
+      "SELECT id FROM oauth_apps WHERE id = ? AND redirect_uri = ? AND deleted_at IS NULL",
     ).bind(clientId, redirectUri).first();
 
     if (!app) {
@@ -436,7 +459,7 @@ oauthRoutes.post("/v1/oauth/token", async (c) => {
 
     // Validate client credentials
     const app = await c.env.DB.prepare(
-      "SELECT id, name FROM oauth_apps WHERE id = ? AND client_secret = ?",
+      "SELECT id, name FROM oauth_apps WHERE id = ? AND client_secret = ? AND deleted_at IS NULL",
     ).bind(clientId, clientSecret).first<{ id: string; name: string }>();
 
     if (!app) {
@@ -540,7 +563,7 @@ oauthRoutes.post("/v1/oauth/refresh", async (c) => {
 
   // Validate client credentials
   const app = await c.env.DB.prepare(
-    "SELECT id FROM oauth_apps WHERE id = ? AND client_secret = ?",
+    "SELECT id FROM oauth_apps WHERE id = ? AND client_secret = ? AND deleted_at IS NULL",
   ).bind(clientId, clientSecret).first();
 
   if (!app) {
