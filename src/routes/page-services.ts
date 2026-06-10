@@ -12,9 +12,10 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
   const [appsResult, providersResult] = await Promise.all([
     c.env.DB.prepare(
       `SELECT a.id, a.app_prefix, a.developer_name, a.provider_config_id, a.last_used_at, a.expires_at, a.revoked_at, a.created_at,
-              oa.daily_spend_limit_cents
+              (SELECT daily_spend_limit_cents FROM oauth_authorizations
+               WHERE user_id = a.user_id AND oauth_app_id = a.oauth_app_id AND revoked_at IS NULL
+               ORDER BY created_at DESC LIMIT 1) AS daily_spend_limit_cents
        FROM authorized_apps a
-       LEFT JOIN oauth_authorizations oa ON oa.user_id = a.user_id AND oa.oauth_app_id = a.oauth_app_id AND oa.revoked_at IS NULL
        WHERE a.user_id = ?
        ORDER BY a.created_at DESC`,
     ).bind(user.id).all(),
