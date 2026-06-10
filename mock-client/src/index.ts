@@ -169,7 +169,7 @@ a{color:var(--accent)}
 <body>
 <div class="container">
 <div class="badge">infer0 Test Client</div>
-<h1>Acme <span>Chat</span></h1>
+<h1><span>infer0</span> Test Client</h1>
 <p>A third-party app powered by <a href="https://infer0.com" target="_blank">infer0</a>. Uses the OpenAI SDK with <code>stream: true</code>.</p>
 
 <pre><code>const client = new OpenAI({
