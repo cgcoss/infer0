@@ -78,8 +78,8 @@ export function HomeView({ user }: HomeViewProps) {
             </div>
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">*/</div>
-              <h3>Built for streaming</h3>
-              <p>All cross-format streaming is handled server-side. Your client always receives OpenAI SSE chunks regardless of the upstream provider.</p>
+              <h3>No inference costs for you</h3>
+              <p>Each user pays their own AI provider bills. Your app never handles billing, credits, or API costs. You only pay for your own hosting.</p>
             </div>
           </div>
         </section>
