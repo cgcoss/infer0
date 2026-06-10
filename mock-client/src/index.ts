@@ -198,7 +198,7 @@ p{color:var(--text-muted);margin-bottom:24px;font-size:0.875rem}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
 pre{background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:0.75rem;overflow-x:auto;margin-bottom:16px;font-family:"SF Mono","Fira Code",monospace}
 code{font-family:"SF Mono","Fira Code",monospace}
-.chat-box{background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-height:200px;max-height:400px;overflow-y:auto;margin-bottom:12px;font-size:0.875rem;white-space:pre-wrap}
+.chat-box{background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:16px;min-height:200px;max-height:400px;overflow-y:auto;margin-bottom:12px;font-size:1rem;white-space:pre-wrap}
 .chat-box .empty{color:var(--text-muted);text-align:center;padding:40px 0}
 .chat-box .msg{margin-bottom:12px;padding:8px 12px;border-radius:var(--radius);line-height:1.5}
 .chat-box .msg.user{background:var(--accent);color:#fff;margin-left:24px}
@@ -206,7 +206,7 @@ code{font-family:"SF Mono","Fira Code",monospace}
 .chat-box .msg.error{background:#7f1d1d;color:#fca5a5}
 .chat-box .msg .role{font-size:0.6875rem;text-transform:uppercase;letter-spacing:0.05em;opacity:0.7;margin-bottom:4px}
 .input-row{display:flex;gap:8px}
-.input-row input{flex:1;margin-bottom:0}
+.input-row input{flex:1;margin-bottom:0;font-size:1rem}
 button{background:var(--accent);color:#fff;border:none;padding:10px 20px;border-radius:var(--radius);font-size:0.875rem;cursor:pointer;white-space:nowrap}
 button:hover{background:#818cf8}
 button:disabled{opacity:0.5;cursor:not-allowed}
