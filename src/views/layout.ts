@@ -179,7 +179,7 @@ export function Layout({ title, user, children }: LayoutProps) {
           .hub-card p { font-size:0.8125rem;color:var(--text-muted);margin:0 }
           main { flex: 1; }
           .container { max-width: var(--max-w); margin: 0 auto; padding: 64px 24px; }
-          footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 0.75rem; border-top: 1px solid var(--border); position: relative; }
+          footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 0.75rem; border-top: 1px solid var(--border); position: relative; line-height: 1.6; }
           footer::before {
             content: '';
             position: absolute;
@@ -455,7 +455,12 @@ export function Layout({ title, user, children }: LayoutProps) {
           </script>
         </nav>
         <main>${children}</main>
-        <footer>infer0 - bring your own intelligence</footer>
+        <footer>
+          infer0 - bring your own intelligence
+          <span style="display:block;margin-top:4px;font-size:0.75rem;text-transform:none;letter-spacing:normal">
+            hi@infer0.com
+          </span>
+        </footer>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
         <script>hljs.highlightAll();</script>
       </body>
