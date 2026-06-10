@@ -87,16 +87,16 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
           </div>
           <div class="card-row">
             <span class="card-label">Last used</span>
-            <span>${new Date(a.last_used_at + 'Z').toLocaleString()}</span>
+            <span><time datetime="${a.last_used_at.replace(' ', 'T')}Z">${a.last_used_at}</time></span>
           </div>
           <div class="card-row">
             <span class="card-label">Expires</span>
-            <span>${new Date(a.expires_at + 'Z').toLocaleString()}</span>
+            <span><time datetime="${a.expires_at.replace(' ', 'T')}Z">${a.expires_at}</time></span>
           </div>
           ${a.revoked_at ? html`
           <div class="card-row">
             <span class="card-label">Revoked</span>
-            <span>${new Date(a.revoked_at + 'Z').toLocaleString()}</span>
+            <span><time datetime="${a.revoked_at.replace(' ', 'T')}Z">${a.revoked_at}</time></span>
           </div>
           ` : ''}
           <div class="card-divider"></div>
@@ -146,6 +146,10 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
         });
         location.reload();
       });
+    });
+    document.querySelectorAll('time[datetime]').forEach(el => {
+      const d = new Date(el.getAttribute('datetime'));
+      if (!isNaN(d.getTime())) el.textContent = d.toLocaleString();
     });
     </script>
     `}

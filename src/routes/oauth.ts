@@ -71,7 +71,7 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
           </div>
           <div class="card-row">
             <span class="card-label">Created</span>
-            <span style="font-size:0.8125rem;color:var(--text-muted)">${new Date((app.created_at as string) + 'Z').toLocaleString()}</span>
+            <span style="font-size:0.8125rem;color:var(--text-muted)"><time datetime="${(app.created_at as string).replace(' ', 'T')}Z">${app.created_at}</time></span>
           </div>
           <div class="card-divider"></div>
           <div class="card-actions">
@@ -92,10 +92,14 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
   </form>
 
   <script>
+  document.querySelectorAll('time[datetime]').forEach(t => {
+    const d = new Date(t.getAttribute('datetime'));
+    if (!isNaN(d.getTime())) t.textContent = d.toLocaleString();
+  });
   document.querySelectorAll('.redirect-uri-display').forEach(el => {
     el.addEventListener('click', () => {
-      const appId = el.dataset.appId;
-      const current = el.textContent;
+        const appId = el.dataset.appId;
+        const current = el.textContent;
       const input = document.createElement('input');
       input.type = 'url';
       input.value = current;
