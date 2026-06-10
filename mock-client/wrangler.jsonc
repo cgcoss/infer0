@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-03-03",
   "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+  "routes": [{ "pattern": "test-client.infer0.com", "custom_domain": true }],
   "vars": {
     "INFER0_API": "https://infer0.com",
     "CLIENT_ID": "9fd68de0-b1c9-4602-96fa-c19b04f59ba7",
