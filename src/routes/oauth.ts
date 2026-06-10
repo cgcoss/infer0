@@ -17,6 +17,7 @@ function generateSecret(): string {
 // Register an OAuth app (developer dashboard page)
 oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
   const user = c.get("user");
+  const newClientId = c.req.query("new_id");
   const newSecret = c.req.query("new_secret");
 
   const { results } = await c.env.DB.prepare(
@@ -40,10 +41,19 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
 
   ${newSecret ? html`
     <div class="banner">
-      <strong>App registered. Save this secret now</strong>
-      <p>This is the only time you'll see it. If you lose it, you'll need to reset it.</p>
-      <div class="secret-display">${newSecret}</div>
-      <p class="hint">Copy this now. It won't be shown again.</p>
+      <strong>App registered. Save these credentials now</strong>
+      <p>This is the only time you'll see the secret. If you lose it, you'll need to reset it.</p>
+      <div style="margin:12px 0 8px;font-size:0.8125rem;font-weight:600">Client ID</div>
+      <div class="secret-display" style="display:flex;align-items:center;gap:8px">
+        <span style="flex:1">${newClientId}</span>
+        <button class="copy-btn" data-value="${newClientId}" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem">Copy</button>
+      </div>
+      <div style="margin:12px 0 8px;font-size:0.8125rem;font-weight:600">Client Secret</div>
+      <div class="secret-display" style="display:flex;align-items:center;gap:8px">
+        <span style="flex:1;user-select:all">${newSecret}</span>
+        <button class="copy-btn" data-value="${newSecret}" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:0.75rem">Copy</button>
+      </div>
+      <p class="hint" style="margin-top:10px">Copy both now. The secret won't be shown again.</p>
     </div>
   ` : ''}
 
@@ -92,6 +102,17 @@ oauthRoutes.get("/dev/apps", requireAuth, async (c) => {
   </form>
 
   <script>
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const val = btn.dataset.value;
+      if (val) {
+        await navigator.clipboard.writeText(val);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 1500);
+      }
+    });
+  });
   document.querySelectorAll('time[datetime]').forEach(t => {
     const d = new Date(t.getAttribute('datetime'));
     if (!isNaN(d.getTime())) t.textContent = d.toLocaleString();
@@ -171,7 +192,7 @@ oauthRoutes.post("/v1/oauth/apps", requireAuth, async (c) => {
     );
   }
 
-  return c.redirect("/dev/apps?new_secret=" + encodeURIComponent(secret));
+  return c.redirect(`/dev/apps?new_id=${encodeURIComponent(id)}&new_secret=${encodeURIComponent(secret)}`);
 });
 
 // Reset client secret
@@ -194,7 +215,7 @@ oauthRoutes.post("/v1/oauth/apps/:id/reset-secret", requireAuth, async (c) => {
       "UPDATE oauth_apps SET client_secret = ? WHERE id = ?",
     ).bind(newSecret, appId).run();
 
-    return c.redirect("/dev/apps?new_secret=" + encodeURIComponent(newSecret));
+    return c.redirect(`/dev/apps?new_id=${encodeURIComponent(appId!)}&new_secret=${encodeURIComponent(newSecret)}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return c.html(
