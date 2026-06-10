@@ -12,7 +12,10 @@ export function HomeView({ user }: HomeViewProps) {
     children: html`
       <div class="container">
         <section class="hero">
-          <h1>Bring your own intelligence.</h1>
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center">
+            <h1 style="margin:0">Bring your own intelligence.</h1>
+            <span style="font-size:0.75rem;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:2px 10px;letter-spacing:0.03em;text-transform:uppercase">Beta</span>
+          </div>
           <p>
             infer0 lets end users connect their AI provider keys and authorize
             apps to use them. Developers integrate once in OpenAI format and
