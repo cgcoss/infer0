@@ -70,3 +70,29 @@ authorizedAppRoutes.put("/v1/authorized-apps/:id/provider", requireSession, asyn
 
   return c.json({ success: true });
 });
+
+authorizedAppRoutes.put("/v1/authorized-apps/:id/spend-limit", requireSession, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const body = await c.req.json<{ daily_spend_limit_cents: number | null }>();
+
+  const existing = await c.env.DB.prepare(
+    "SELECT id, oauth_app_id FROM authorized_apps WHERE id = ? AND user_id = ?",
+  ).bind(id, user.id).first<{ id: string; oauth_app_id: string }>();
+
+  if (!existing) {
+    return c.json({ error: { message: "Authorization not found", code: "not_found" } }, 404);
+  }
+
+  const limit = body.daily_spend_limit_cents;
+  if (limit !== null && (typeof limit !== "number" || limit < 0)) {
+    return c.json({ error: { message: "Invalid spend limit", code: "validation_error" } }, 400);
+  }
+
+  await c.env.DB.prepare(
+    `UPDATE oauth_authorizations SET daily_spend_limit_cents = ?
+     WHERE user_id = ? AND oauth_app_id = ? AND revoked_at IS NULL`,
+  ).bind(limit, user.id, existing.oauth_app_id).run();
+
+  return c.json({ success: true });
+});

@@ -84,6 +84,7 @@ CREATE TABLE oauth_authorizations (
   user_id TEXT NOT NULL,
   oauth_app_id TEXT NOT NULL,
   provider_config_id TEXT,
+  daily_spend_limit_cents INTEGER,
   authorization_code TEXT,
   code_expires_at TEXT,
   access_token_hash TEXT,
@@ -101,9 +102,10 @@ CREATE TABLE oauth_authorizations (
 CREATE TABLE daily_usage (
   user_id TEXT NOT NULL,
   provider_config_id TEXT NOT NULL,
+  oauth_authorization_id TEXT NOT NULL DEFAULT '',
   date TEXT NOT NULL,
   cost_cents REAL NOT NULL DEFAULT 0,
-  PRIMARY KEY (user_id, provider_config_id, date),
+  PRIMARY KEY (user_id, provider_config_id, oauth_authorization_id, date),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (provider_config_id) REFERENCES provider_configs(id)
 );

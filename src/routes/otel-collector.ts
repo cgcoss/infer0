@@ -74,11 +74,12 @@ otelRoutes.post("/otel/v1/traces", async (c) => {
         const cost = attrValue(attrs, "gen_ai.usage.cost");
         const userId = attrValue(attrs, "user_id");
         const configId = attrValue(attrs, "provider_config_id");
+        const authId = attrValue(attrs, "oauth_authorization_id");
 
         if (cost !== undefined && userId && configId) {
           const costCents = Number(((cost as number) * 100).toFixed(4));
           if (costCents > 0) {
-            promises.push(recordCost(c.env.DB, userId as string, configId as string, costCents));
+            promises.push(recordCost(c.env.DB, userId as string, configId as string, costCents, authId as string | undefined));
           }
         }
       }

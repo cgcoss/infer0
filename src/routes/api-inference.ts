@@ -36,12 +36,17 @@ async function checkDailyLimit(
   userId: string,
   configId: string,
   limitCents: number | null | undefined,
+  oauthAuthorizationId?: string,
 ): Promise<{ allowed: boolean; todayCents: number }> {
   if (!limitCents || limitCents <= 0) return { allowed: true, todayCents: 0 };
   const today = new Date().toISOString().slice(0, 10);
-  const row = await db.prepare(
-    "SELECT cost_cents FROM daily_usage WHERE user_id = ? AND provider_config_id = ? AND date = ?",
-  ).bind(userId, configId, today).first<{ cost_cents: number }>();
+  const row = oauthAuthorizationId
+    ? await db.prepare(
+        "SELECT cost_cents FROM daily_usage WHERE user_id = ? AND provider_config_id = ? AND oauth_authorization_id = ? AND date = ?",
+      ).bind(userId, configId, oauthAuthorizationId, today).first<{ cost_cents: number }>()
+    : await db.prepare(
+        "SELECT cost_cents FROM daily_usage WHERE user_id = ? AND provider_config_id = ? AND date = ?",
+      ).bind(userId, configId, today).first<{ cost_cents: number }>();
   const todayCents = row?.cost_cents ?? 0;
   return { allowed: todayCents < limitCents, todayCents };
 }
@@ -103,21 +108,36 @@ async function handleInference(c: AppContext): Promise<Response> {
     console.error("Failed to record authorization:", err);
   }
 
-  const limitRow = await c.env.DB.prepare(
-    "SELECT daily_spend_limit_cents FROM provider_configs WHERE id = ?",
-  ).bind(provider.configId).first<Pick<ProviderConfig, "daily_spend_limit_cents">>();
+  const [limitRow, authRow] = await Promise.all([
+    c.env.DB.prepare(
+      "SELECT daily_spend_limit_cents FROM provider_configs WHERE id = ?",
+    ).bind(provider.configId).first<Pick<ProviderConfig, "daily_spend_limit_cents">>(),
+    c.env.DB.prepare(
+      "SELECT daily_spend_limit_cents FROM oauth_authorizations WHERE id = ?",
+    ).bind(auth.oauthAuthorizationId).first<{ daily_spend_limit_cents: number | null }>(),
+  ]);
 
-  const limitCheck = await checkDailyLimit(c.env.DB, auth.userId, provider.configId, limitRow?.daily_spend_limit_cents);
-  if (!limitCheck.allowed) {
+  const providerLimitCheck = await checkDailyLimit(c.env.DB, auth.userId, provider.configId, limitRow?.daily_spend_limit_cents);
+  if (!providerLimitCheck.allowed) {
     return c.json({
       error: {
-        message: `Daily spend limit of $${((limitRow!.daily_spend_limit_cents ?? 0) / 100).toFixed(2)} exceeded. Today's spend: $${(limitCheck.todayCents / 100).toFixed(2)}.`,
+        message: `Daily spend limit of $${((limitRow!.daily_spend_limit_cents ?? 0) / 100).toFixed(2)} exceeded. Today's spend: $${(providerLimitCheck.todayCents / 100).toFixed(2)}.`,
         code: "spend_limit_exceeded",
       },
     }, 429);
   }
 
-  const response = await execute(c.env, provider, body, requestModel, auth.userId, provider.configId);
+  const authLimitCheck = await checkDailyLimit(c.env.DB, auth.userId, provider.configId, authRow?.daily_spend_limit_cents, auth.oauthAuthorizationId);
+  if (!authLimitCheck.allowed) {
+    return c.json({
+      error: {
+        message: `Daily spend limit of $${((authRow!.daily_spend_limit_cents ?? 0) / 100).toFixed(2)} exceeded for this authorization. Today's spend: $${(authLimitCheck.todayCents / 100).toFixed(2)}.`,
+        code: "spend_limit_exceeded",
+      },
+    }, 429);
+  }
+
+  const response = await execute(c.env, provider, body, requestModel, auth.userId, provider.configId, auth.oauthAuthorizationId);
 
   if (response.status === 429) {
     return c.json({

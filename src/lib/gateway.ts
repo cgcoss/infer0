@@ -8,7 +8,7 @@ import {
 } from "./translate-response";
 
 type ProviderInfo = { provider: string; model: string; apiKey: string };
-type GatewayMeta = { userId?: string; providerConfigId?: string };
+type GatewayMeta = { userId?: string; providerConfigId?: string; oauthAuthorizationId?: string };
 
 const GATEWAY_BASE = "https://gateway.ai.cloudflare.com/v1";
 
@@ -16,10 +16,11 @@ function gatewayMetaHeaders(env: Env, meta: GatewayMeta): Record<string, string>
   const headers: Record<string, string> = {
     "cf-aig-authorization": `Bearer ${env.CF_API_TOKEN}`,
   };
-  if (meta.userId || meta.providerConfigId) {
+  if (meta.userId || meta.providerConfigId || meta.oauthAuthorizationId) {
     const md: Record<string, string> = {};
     if (meta.userId) md.user_id = meta.userId;
     if (meta.providerConfigId) md.provider_config_id = meta.providerConfigId;
+    if (meta.oauthAuthorizationId) md.oauth_authorization_id = meta.oauthAuthorizationId;
     headers["cf-aig-metadata"] = JSON.stringify(md);
   }
   return headers;
@@ -187,11 +188,13 @@ export async function execute(
   requestModel: string | null,
   userId?: string,
   providerConfigId?: string,
+  oauthAuthorizationId?: string,
 ): Promise<Response> {
   const useGateway = (env as any).GATEWAY_ENABLED === "true" && (env as any).TEST_MODE !== "true";
   const meta: GatewayMeta = {};
   if (userId) meta.userId = userId;
   if (providerConfigId) meta.providerConfigId = providerConfigId;
+  if (oauthAuthorizationId) meta.oauthAuthorizationId = oauthAuthorizationId;
   const gwRes = useGateway
     ? await callProviderViaGateway(env, provider, developerBody, meta)
     : await callProviderDirectly(provider, developerBody);

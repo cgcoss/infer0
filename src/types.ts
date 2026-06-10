@@ -68,6 +68,7 @@ export interface OAuthAuthorization {
   user_id: string;
   oauth_app_id: string;
   provider_config_id: string | null;
+  daily_spend_limit_cents: number | null;
   authorization_code: string | null;
   code_expires_at: string | null;
   access_token_hash: string | null;

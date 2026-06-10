@@ -11,8 +11,10 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
 
   const [appsResult, providersResult] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT a.id, a.app_prefix, a.developer_name, a.provider_config_id, a.last_used_at, a.expires_at, a.revoked_at, a.created_at
+      `SELECT a.id, a.app_prefix, a.developer_name, a.provider_config_id, a.last_used_at, a.expires_at, a.revoked_at, a.created_at,
+              oa.daily_spend_limit_cents
        FROM authorized_apps a
+       LEFT JOIN oauth_authorizations oa ON oa.user_id = a.user_id AND oa.oauth_app_id = a.oauth_app_id AND oa.revoked_at IS NULL
        WHERE a.user_id = ?
        ORDER BY a.created_at DESC`,
     ).bind(user.id).all(),
@@ -54,6 +56,13 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
             </select>
           </div>
           <div class="card-row">
+            <span class="card-label">Daily spend limit</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:0.8125rem;color:var(--text-muted)">$</span>
+              <input type="number" class="spend-limit-input" data-app-id="${a.id}" value="${a.daily_spend_limit_cents != null ? (a.daily_spend_limit_cents / 100).toFixed(2) : ''}" placeholder="No limit" min="0" step="0.01" style="width:90px;background:var(--bg-hover);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-size:0.8125rem" ${a.revoked_at ? 'disabled' : ''} />
+            </div>
+          </div>
+          <div class="card-row">
             <span class="card-label">Last used</span>
             <span>${new Date(a.last_used_at + 'Z').toLocaleString()}</span>
           </div>
@@ -87,6 +96,18 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ provider_config_id: val }),
+        });
+      });
+    });
+    document.querySelectorAll('.spend-limit-input').forEach((inp) => {
+      inp.addEventListener('change', async () => {
+        const appId = inp.dataset.appId;
+        const val = parseFloat(inp.value);
+        const cents = isNaN(val) ? null : Math.round(val * 100);
+        await fetch('/v1/authorized-apps/' + appId + '/spend-limit', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ daily_spend_limit_cents: cents }),
         });
       });
     });
