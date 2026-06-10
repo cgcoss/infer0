@@ -136,9 +136,9 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
   </script>
   <script>
   const MODELS = {
-    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5.1", "gpt-5.1-codex", "gpt-5.2", "gpt-5.4", "gpt-5.5", "o1", "o3", "o3-mini", "o3-pro", "o4-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
-    anthropic: ["claude-sonnet-4-5", "claude-sonnet-4", "claude-haiku-4-5", "claude-3.5-sonnet", "claude-3.5-haiku", "claude-opus-4-5", "claude-opus-4-1", "claude-opus-4", "claude-3-opus", "claude-3-sonnet", "claude-3-haiku"],
-    "google-ai-studio": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"],
+    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5", "gpt-5-mini", "gpt-5-chat", "gpt-5-nano", "gpt-5.1", "gpt-5.1-chat", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-pro", "gpt-5.4-nano", "gpt-5.5", "gpt-5.5-pro", "gpt-oss-20b", "gpt-oss-120b", "o3", "o3-mini", "o4-mini"],
+    anthropic: ["claude-sonnet-4", "claude-sonnet-4.5", "claude-sonnet-4.6", "claude-haiku-4.5", "claude-opus-4.5", "claude-opus-4.6", "claude-opus-4.7", "claude-opus-4.8", "claude-fable-5"],
+    "google-ai-studio": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemma-3-12b-it", "gemma-4-26b-a4b-it", "gemma-7b-it", "gemma-2b-it", "gemma-7b-it-lora"],
   };
   function updateModels() {
     const provider = document.getElementById("provider-select").value;
