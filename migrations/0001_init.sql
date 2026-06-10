@@ -34,6 +34,7 @@ CREATE TABLE provider_configs (
   api_key_encrypted TEXT NOT NULL,
   key_version TEXT NOT NULL DEFAULT 'v1',
   is_default INTEGER NOT NULL DEFAULT 0,
+  daily_spend_limit_cents INTEGER,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)
@@ -96,3 +97,15 @@ CREATE TABLE oauth_authorizations (
   FOREIGN KEY (oauth_app_id) REFERENCES oauth_apps(id),
   FOREIGN KEY (provider_config_id) REFERENCES provider_configs(id)
 );
+
+CREATE TABLE daily_usage (
+  user_id TEXT NOT NULL,
+  provider_config_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  cost_cents REAL NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, provider_config_id, date),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (provider_config_id) REFERENCES provider_configs(id)
+);
+
+

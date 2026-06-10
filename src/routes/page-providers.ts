@@ -9,9 +9,19 @@ export const providerPageRoutes = new Hono<{ Bindings: Env }>();
 providerPageRoutes.get("/providers", requireAuth, async (c) => {
   const user = c.get("user");
 
+  const today = new Date().toISOString().slice(0, 10);
   const { results } = await c.env.DB.prepare(
-    "SELECT id, provider, model, name, is_default, created_at FROM provider_configs WHERE user_id = ? ORDER BY created_at DESC",
+    "SELECT id, provider, model, name, is_default, daily_spend_limit_cents, created_at FROM provider_configs WHERE user_id = ? ORDER BY created_at DESC",
   ).bind(user.id).all();
+
+  const usageRows = await c.env.DB.prepare(
+    "SELECT provider_config_id, cost_cents FROM daily_usage WHERE user_id = ? AND date = ?",
+  ).bind(user.id, today).all();
+
+  const usageMap: Record<string, number> = {};
+  for (const r of usageRows.results as any[]) {
+    usageMap[r.provider_config_id] = r.cost_cents;
+  }
 
   return c.html(Layout({
     title: "AI Providers",
@@ -25,14 +35,30 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
     ? html`<p style="margin:24px 0;color:var(--text-muted)">No providers configured yet.</p>`
     : html`
     <div class="card-grid">
-      ${(results as any[]).map(p => html`
-        <div class="record-card">
+      ${(results as any[]).map(p => {
+        const todayCents = usageMap[p.id] ?? 0;
+        const limitCents = p.daily_spend_limit_cents;
+        const exceeded = limitCents !== null && todayCents >= limitCents;
+        return html`
+        <div class="record-card" style="${exceeded ? 'opacity:0.6' : ''}">
           <div class="card-title">
             ${p.provider}${p.model ? html` &middot; ${p.model}` : ""}
             ${p.is_default ? html`<span class="badge badge-default" style="margin-left:8px">default</span>` : ""}
+            ${exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
           </div>
           ${p.name ? html`<div class="card-sub">${p.name}</div>` : ""}
           <div class="card-divider"></div>
+          <div class="spend-row">
+            <span class="spend-label">Today</span>
+            <span class="spend-value">$${(todayCents / 100).toFixed(2)}</span>
+            ${limitCents !== null ? html`<span class="spend-max">/ $${(limitCents / 100).toFixed(2)}</span>` : ""}
+          </div>
+          <div class="card-divider"></div>
+          <div class="spend-limit-form">
+            <input type="number" class="spend-limit-input" data-id="${p.id}" placeholder="Daily limit ($)" value="${limitCents !== null ? (limitCents / 100).toFixed(2) : ""}" min="0" step="0.01" />
+            <button class="btn-save-limit" data-id="${p.id}">${limitCents !== null ? "Update" : "Set limit"}</button>
+            ${limitCents !== null ? html`<button class="btn-remove-limit" data-id="${p.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.8125rem">Remove</button>` : ""}
+          </div>
           <div class="card-actions">
             ${!p.is_default ? html`<button class="btn-set-default" data-id="${p.id}" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.8125rem">Set as default</button>` : ""}
             <form method="POST" action="/v1/providers/${p.id}/delete" style="display:inline">
@@ -40,7 +66,8 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
             </form>
           </div>
         </div>
-      `)}
+        `;
+      })}
     </div>
     `}
 
@@ -52,6 +79,33 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_default: true }),
+      });
+      location.reload();
+    });
+  });
+
+  document.querySelectorAll('.btn-save-limit').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const input = document.querySelector('.spend-limit-input[data-id="' + id + '"]');
+      const val = parseFloat(input.value);
+      const cents = isNaN(val) || val <= 0 ? null : Math.round(val * 100);
+      await fetch('/v1/providers/' + id + '/spend-limit', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daily_spend_limit_cents: cents }),
+      });
+      location.reload();
+    });
+  });
+
+  document.querySelectorAll('.btn-remove-limit').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      await fetch('/v1/providers/' + id + '/spend-limit', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daily_spend_limit_cents: null }),
       });
       location.reload();
     });

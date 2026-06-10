@@ -1,5 +1,5 @@
 import { Hono, type Context } from "hono";
-import type { Env } from "../types";
+import type { Env, ProviderConfig } from "../types";
 import { verifyToken } from "../lib/auth";
 import { getUserProvider } from "./api-providers";
 import { extractRequestModel } from "../lib/normalize";
@@ -29,6 +29,21 @@ async function authenticateRequest(
   }
 
   return { userId: payload.sub, exp: payload.exp ?? 0, oauthAuthorizationId };
+}
+
+async function checkDailyLimit(
+  db: D1Database,
+  userId: string,
+  configId: string,
+  limitCents: number | null | undefined,
+): Promise<{ allowed: boolean; todayCents: number }> {
+  if (!limitCents || limitCents <= 0) return { allowed: true, todayCents: 0 };
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await db.prepare(
+    "SELECT cost_cents FROM daily_usage WHERE user_id = ? AND provider_config_id = ? AND date = ?",
+  ).bind(userId, configId, today).first<{ cost_cents: number }>();
+  const todayCents = row?.cost_cents ?? 0;
+  return { allowed: todayCents < limitCents, todayCents };
 }
 
 const inferenceRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -88,7 +103,32 @@ async function handleInference(c: AppContext): Promise<Response> {
     console.error("Failed to record authorization:", err);
   }
 
-  return execute(c.env, provider, body, requestModel);
+  const limitRow = await c.env.DB.prepare(
+    "SELECT daily_spend_limit_cents FROM provider_configs WHERE id = ?",
+  ).bind(provider.configId).first<Pick<ProviderConfig, "daily_spend_limit_cents">>();
+
+  const limitCheck = await checkDailyLimit(c.env.DB, auth.userId, provider.configId, limitRow?.daily_spend_limit_cents);
+  if (!limitCheck.allowed) {
+    return c.json({
+      error: {
+        message: `Daily spend limit of $${((limitRow!.daily_spend_limit_cents ?? 0) / 100).toFixed(2)} exceeded. Today's spend: $${(limitCheck.todayCents / 100).toFixed(2)}.`,
+        code: "spend_limit_exceeded",
+      },
+    }, 429);
+  }
+
+  const response = await execute(c.env, provider, body, requestModel, auth.userId, provider.configId);
+
+  if (response.status === 429) {
+    return c.json({
+      error: {
+        message: "Daily spend limit exceeded. Check your provider settings or Cloudflare AI Gateway dashboard.",
+        code: "spend_limit_exceeded",
+      },
+    }, 429);
+  }
+
+  return response;
 }
 
 inferenceRoutes.post("/v1/chat/completions", handleInference);

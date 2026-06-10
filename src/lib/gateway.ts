@@ -8,8 +8,22 @@ import {
 } from "./translate-response";
 
 type ProviderInfo = { provider: string; model: string; apiKey: string };
+type GatewayMeta = { userId?: string; providerConfigId?: string };
 
 const GATEWAY_BASE = "https://gateway.ai.cloudflare.com/v1";
+
+function gatewayMetaHeaders(env: Env, meta: GatewayMeta): Record<string, string> {
+  const headers: Record<string, string> = {
+    "cf-aig-authorization": `Bearer ${env.CF_API_TOKEN}`,
+  };
+  if (meta.userId || meta.providerConfigId) {
+    const md: Record<string, string> = {};
+    if (meta.userId) md.user_id = meta.userId;
+    if (meta.providerConfigId) md.provider_config_id = meta.providerConfigId;
+    headers["cf-aig-metadata"] = JSON.stringify(md);
+  }
+  return headers;
+}
 
 function gatewayBase(env: Env): string {
   return `${GATEWAY_BASE}/${env.ACCOUNT_ID}/${env.GATEWAY_ID ?? "default"}`;
@@ -19,6 +33,7 @@ async function callProviderViaGateway(
   env: Env,
   provider: ProviderInfo,
   developerBody: Record<string, unknown>,
+  meta: GatewayMeta,
 ): Promise<Response> {
   const { messages, stream, model: _clientModel, ...rest } = developerBody;
   const isStream = stream === true;
@@ -38,6 +53,7 @@ async function callProviderViaGateway(
         "Content-Type": "application/json",
         "x-api-key": provider.apiKey,
         "anthropic-version": "2023-06-01",
+        ...gatewayMetaHeaders(env, meta),
       },
       body: JSON.stringify(body),
     });
@@ -58,6 +74,7 @@ async function callProviderViaGateway(
       headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": provider.apiKey,
+        ...gatewayMetaHeaders(env, meta),
       },
       body: JSON.stringify(body),
     });
@@ -84,6 +101,7 @@ async function callProviderViaGateway(
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${provider.apiKey}`,
+      ...gatewayMetaHeaders(env, meta),
     },
     body: JSON.stringify(body),
   });
@@ -167,10 +185,15 @@ export async function execute(
   provider: ProviderInfo,
   developerBody: Record<string, unknown>,
   requestModel: string | null,
+  userId?: string,
+  providerConfigId?: string,
 ): Promise<Response> {
   const useGateway = (env as any).GATEWAY_ENABLED === "true" && (env as any).TEST_MODE !== "true";
+  const meta: GatewayMeta = {};
+  if (userId) meta.userId = userId;
+  if (providerConfigId) meta.providerConfigId = providerConfigId;
   const gwRes = useGateway
-    ? await callProviderViaGateway(env, provider, developerBody)
+    ? await callProviderViaGateway(env, provider, developerBody, meta)
     : await callProviderDirectly(provider, developerBody);
 
   if (!gwRes.ok) {
@@ -203,14 +226,12 @@ export async function execute(
       }
     }
 
-    return new Response(stream, {
-      status: gwRes.status,
-      headers: {
-        "content-type": "text/event-stream",
-        "cache-control": "no-cache",
-        "connection": "keep-alive",
-      },
-    });
+    const streamHeaders: Record<string, string> = {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      "connection": "keep-alive",
+    };
+    return new Response(stream, { status: gwRes.status, headers: streamHeaders });
   }
 
   let data = await gwRes.json() as Record<string, unknown>;
@@ -225,8 +246,5 @@ export async function execute(
     data.model = requestModel;
   }
 
-  return new Response(JSON.stringify(data), {
-    status: gwRes.status,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(JSON.stringify(data), { status: gwRes.status, headers: { "content-type": "application/json" } });
 }

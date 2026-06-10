@@ -14,6 +14,7 @@ interface __BaseEnv_Env {
 	ENCRYPTION_KEY: string;
 	ENCRYPTION_KEY_PREVIOUS?: string;
 	CF_API_TOKEN: string;
+	OTEL_AUTH_TOKEN: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

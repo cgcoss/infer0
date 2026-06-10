@@ -158,6 +158,15 @@ export function Layout({ title, user, children }: LayoutProps) {
           .record-card .card-divider { height:1px;background:var(--border);margin:12px 0 }
           .record-card .card-actions { display:flex;gap:8px;flex-wrap:wrap;align-items:center }
           .record-card select.card-select { background:var(--bg-hover);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:0.75rem;max-width:200px }
+          .spend-row { display:flex;align-items:center;gap:6px;font-size:0.875rem }
+          .spend-label { color:var(--text-muted);font-size:0.75rem }
+          .spend-value { font-weight:600 }
+          .spend-max { color:var(--text-muted);font-size:0.75rem }
+          .spend-limit-form { display:flex;gap:8px;align-items:center;margin-bottom:12px }
+          .spend-limit-input { background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;color:var(--text);font-size:0.8125rem;width:140px }
+          .spend-limit-input::placeholder { color:var(--text-muted) }
+          .btn-save-limit { background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:6px 14px;font-size:0.8125rem;cursor:pointer;font-weight:600 }
+          .btn-save-limit:hover { background:var(--accent-hover) }
           .badge { display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600 }
           .badge-active { background:rgba(52,211,153,0.15);color:#34d399 }
           .badge-revoked { background:rgba(239,68,68,0.15);color:#ef4444 }

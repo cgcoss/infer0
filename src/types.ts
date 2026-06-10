@@ -36,6 +36,7 @@ export interface ProviderConfig {
   api_key_encrypted: string;
   key_version: string;
   is_default: number;
+  daily_spend_limit_cents: number | null;
   created_at: string;
   updated_at: string;
 }

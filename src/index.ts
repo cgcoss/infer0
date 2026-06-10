@@ -15,6 +15,7 @@ import { faqRoutes } from "./routes/page-faq";
 import { pricingRoutes } from "./routes/page-pricing";
 import { testRoutes } from "./routes/__test";
 import { ogImageRoutes } from "./routes/og-image";
+import { otelRoutes } from "./routes/otel-collector";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -34,6 +35,8 @@ app.use("*", async (c, next) => {
 // Rate limiting (simple in-memory per-IP)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 app.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  if (url.pathname.startsWith("/otel/")) return next();
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
@@ -137,6 +140,7 @@ app.route("/", faqRoutes);
 app.route("/", pricingRoutes);
 app.route("/", userinfoRoutes);
 app.route("/", ogImageRoutes);
+app.route("/", otelRoutes);
 // Only register test routes in dev (TEST_MODE=true in .dev.vars)
 app.use("/__test/*", async (c, next) => {
   if (c.env.TEST_MODE !== "true") {

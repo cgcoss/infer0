@@ -158,6 +158,48 @@ providerRoutes.post("/v1/providers/:id/delete", requireAuth, async (c) => {
   return c.redirect("/providers");
 });
 
+// Set daily spend limit
+providerRoutes.put("/v1/providers/:id/spend-limit", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: { message: "Provider not found", code: "not_found" } }, 404);
+  const body = await c.req.json<{ daily_spend_limit_cents: number | null }>();
+
+  const existing = await c.env.DB.prepare(
+    "SELECT id FROM provider_configs WHERE id = ? AND user_id = ?",
+  ).bind(id, user.id).first();
+
+  if (!existing) {
+    return c.json({ error: { message: "Provider not found", code: "not_found" } }, 404);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE provider_configs SET daily_spend_limit_cents = ?, updated_at = datetime('now') WHERE id = ?",
+  ).bind(body.daily_spend_limit_cents ?? null, id).run();
+
+  return c.json({ success: true });
+});
+
+// Get today's usage for a provider
+providerRoutes.get("/v1/providers/:id/today-usage", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+
+  const today = new Date().toISOString().slice(0, 10);
+  const row = await c.env.DB.prepare(
+    "SELECT cost_cents FROM daily_usage WHERE user_id = ? AND provider_config_id = ? AND date = ?",
+  ).bind(user.id, id, today).first<{ cost_cents: number }>();
+
+  const limitRow = await c.env.DB.prepare(
+    "SELECT daily_spend_limit_cents FROM provider_configs WHERE id = ? AND user_id = ?",
+  ).bind(id, user.id).first<{ daily_spend_limit_cents: number | null }>();
+
+  return c.json({
+    today_cents: row?.cost_cents ?? 0,
+    limit_cents: limitRow?.daily_spend_limit_cents ?? null,
+  });
+});
+
 // Delete provider (API)
 providerRoutes.delete("/v1/providers/:id", requireAuth, async (c) => {
   const user = c.get("user");
@@ -189,7 +231,7 @@ export async function getUserProvider(
   encryptionKey: string,
   providerConfigId?: string | null,
   previousEncryptionKey?: string,
-): Promise<{ provider: string; model: string; apiKey: string } | null> {
+): Promise<{ configId: string; provider: string; model: string; apiKey: string } | null> {
   const config = providerConfigId
     ? await db.prepare(
         "SELECT id, provider, model, api_key_encrypted, key_version FROM provider_configs WHERE id = ? AND user_id = ?",
@@ -210,11 +252,12 @@ export async function getUserProvider(
     db.prepare(
       "UPDATE provider_configs SET api_key_encrypted = ?, key_version = ?, updated_at = datetime('now') WHERE id = ?",
     ).bind(await encrypt(apiKey, encryptionKey), CURRENT_KEY_VERSION, config.id).run().catch(() => {});
-    return { provider: config.provider, model: config.model, apiKey };
+    return { configId: config.id, provider: config.provider, model: config.model, apiKey };
   }
 
   const apiKey = await decrypt(config.api_key_encrypted, encryptionKey);
   return {
+    configId: config.id,
     provider: config.provider,
     model: config.model,
     apiKey,
