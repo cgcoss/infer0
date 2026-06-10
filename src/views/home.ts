@@ -33,7 +33,7 @@ export function HomeView({ user }: HomeViewProps) {
         </section>
 
         <section>
-          <h2>A few primitives</h2>
+          <h2>How it works</h2>
           <div style="display:flex;flex-direction:column;gap:16px;margin-top:32px">
             <div style="display:flex;gap:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">1</div>
