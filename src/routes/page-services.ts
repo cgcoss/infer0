@@ -8,10 +8,14 @@ export const servicePageRoutes = new Hono<{ Bindings: Env }>();
 
 servicePageRoutes.get("/services", requireAuth, async (c) => {
   const user = c.get("user");
+  const today = new Date().toISOString().slice(0, 10);
 
-  const [appsResult, providersResult] = await Promise.all([
+  const [appsResult, providersResult, usageResult] = await Promise.all([
     c.env.DB.prepare(
       `SELECT a.id, a.app_prefix, a.developer_name, a.provider_config_id, a.last_used_at, a.expires_at, a.revoked_at, a.created_at,
+              (SELECT id FROM oauth_authorizations
+               WHERE user_id = a.user_id AND oauth_app_id = a.oauth_app_id AND revoked_at IS NULL
+               ORDER BY created_at DESC LIMIT 1) AS oauth_authorization_id,
               (SELECT daily_spend_limit_cents FROM oauth_authorizations
                WHERE user_id = a.user_id AND oauth_app_id = a.oauth_app_id AND revoked_at IS NULL
                ORDER BY created_at DESC LIMIT 1) AS daily_spend_limit_cents
@@ -22,10 +26,18 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
     c.env.DB.prepare(
       "SELECT id, provider, model, name FROM provider_configs WHERE user_id = ? ORDER BY is_default DESC",
     ).bind(user.id).all(),
+    c.env.DB.prepare(
+      "SELECT oauth_authorization_id, cost_cents FROM daily_usage WHERE user_id = ? AND date = ? AND oauth_authorization_id != ''",
+    ).bind(user.id, today).all(),
   ]);
 
   const apps = appsResult.results as any[];
   const providers = providersResult.results as any[];
+
+  const usageByAuth: Record<string, number> = {};
+  for (const r of usageResult.results as any[]) {
+    usageByAuth[r.oauth_authorization_id] = (usageByAuth[r.oauth_authorization_id] ?? 0) + r.cost_cents;
+  }
 
   return c.html(Layout({
     title: "Authorizations",
@@ -39,13 +51,18 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
     ? html`<p style="margin:24px 0;color:var(--text-muted)">No services authorized yet. They will appear here when a developer app uses your token.</p>`
     : html`
     <div class="card-grid">
-      ${apps.map(a => html`
-        <div class="record-card">
+      ${apps.map(a => {
+        const todayCents = usageByAuth[a.oauth_authorization_id] ?? 0;
+        const limitCents = a.daily_spend_limit_cents;
+        const exceeded = limitCents !== null && todayCents >= limitCents;
+        return html`
+        <div class="record-card" style="${exceeded ? 'opacity:0.6' : ''}">
           <div class="card-title">
             ${a.developer_name || html`<code>${a.app_prefix}...</code>`}
             ${a.revoked_at
               ? html`<span class="badge badge-revoked" style="float:right">Revoked</span>`
               : html`<span class="badge badge-active" style="float:right">Active</span>`}
+            ${exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
           </div>
           <div class="card-row">
             <span class="card-label">Provider</span>
@@ -56,12 +73,17 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
               `)}
             </select>
           </div>
-          <div class="card-row">
-            <span class="card-label">Daily spend limit</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:0.8125rem;color:var(--text-muted)">$</span>
-              <input type="number" class="spend-limit-input" data-app-id="${a.id}" value="${a.daily_spend_limit_cents != null ? (a.daily_spend_limit_cents / 100).toFixed(2) : ''}" placeholder="No limit" min="0" step="0.01" style="width:90px;background:var(--bg-hover);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-size:0.8125rem" ${a.revoked_at ? 'disabled' : ''} />
-            </div>
+          <div class="card-divider"></div>
+          <div class="spend-row">
+            <span class="spend-label">Today</span>
+            <span class="spend-value">$${(todayCents / 100).toFixed(2)}</span>
+            ${limitCents !== null ? html`<span class="spend-max">/ $${(limitCents / 100).toFixed(2)}</span>` : ""}
+          </div>
+          <div class="card-divider"></div>
+          <div class="spend-limit-form">
+            <input type="number" class="spend-limit-input" data-app-id="${a.id}" placeholder="Daily limit ($)" value="${limitCents !== null ? (limitCents / 100).toFixed(2) : ""}" min="0" step="0.01" ${a.revoked_at ? 'disabled' : ''} />
+            <button class="btn-save-limit" data-app-id="${a.id}">${limitCents !== null ? "Update" : "Set limit"}</button>
+            ${limitCents !== null ? html`<button class="btn-remove-limit" data-app-id="${a.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.8125rem">Remove</button>` : ""}
           </div>
           <div class="card-row">
             <span class="card-label">Last used</span>
@@ -86,7 +108,7 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
             ` : ''}
           </div>
         </div>
-      `)}
+      `})}
     </div>
     <script>
     document.querySelectorAll('.provider-select').forEach((sel) => {
@@ -100,16 +122,29 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
         });
       });
     });
-    document.querySelectorAll('.spend-limit-input').forEach((inp) => {
-      inp.addEventListener('change', async () => {
-        const appId = inp.dataset.appId;
-        const val = parseFloat(inp.value);
-        const cents = isNaN(val) ? null : Math.round(val * 100);
+    document.querySelectorAll('.btn-save-limit').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.appId;
+        const input = document.querySelector('.spend-limit-input[data-app-id="' + appId + '"]');
+        const val = parseFloat(input.value);
+        const cents = isNaN(val) || val <= 0 ? null : Math.round(val * 100);
         await fetch('/v1/authorized-apps/' + appId + '/spend-limit', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ daily_spend_limit_cents: cents }),
         });
+        location.reload();
+      });
+    });
+    document.querySelectorAll('.btn-remove-limit').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.appId;
+        await fetch('/v1/authorized-apps/' + appId + '/spend-limit', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ daily_spend_limit_cents: null }),
+        });
+        location.reload();
       });
     });
     </script>
