@@ -15,7 +15,7 @@ export function PricingView({ user }: PricingViewProps) {
           <h1 style="font-size:2.5rem;margin-bottom:8px">Pricing</h1>
           <p style="font-size:1.0625rem">
             infer0 charges for API requests routed through the platform.
-            Your users still pay their AI provider directly &mdash; this is an additional platform fee.
+            Your users still pay their AI provider directly. This is an additional platform fee.
           </p>
         </div>
 
