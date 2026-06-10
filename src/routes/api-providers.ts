@@ -224,6 +224,34 @@ providerRoutes.delete("/v1/providers/:id", requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
+// Pause provider
+providerRoutes.put("/v1/providers/:id/pause", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const existing = await c.env.DB.prepare(
+    "SELECT id FROM provider_configs WHERE id = ? AND user_id = ?",
+  ).bind(id, user.id).first();
+  if (!existing) return c.json({ error: { message: "Provider not found", code: "not_found" } }, 404);
+  await c.env.DB.prepare(
+    "UPDATE provider_configs SET paused_at = datetime('now'), updated_at = datetime('now') WHERE id = ?",
+  ).bind(id).run();
+  return c.json({ success: true });
+});
+
+// Resume provider
+providerRoutes.put("/v1/providers/:id/resume", requireAuth, async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const existing = await c.env.DB.prepare(
+    "SELECT id FROM provider_configs WHERE id = ? AND user_id = ?",
+  ).bind(id, user.id).first();
+  if (!existing) return c.json({ error: { message: "Provider not found", code: "not_found" } }, 404);
+  await c.env.DB.prepare(
+    "UPDATE provider_configs SET paused_at = NULL, updated_at = datetime('now') WHERE id = ?",
+  ).bind(id).run();
+  return c.json({ success: true });
+});
+
 // Internal helper: get decrypted provider config (used by inference)
 export async function getUserProvider(
   db: D1Database,
@@ -234,13 +262,15 @@ export async function getUserProvider(
 ): Promise<{ configId: string; provider: string; model: string; apiKey: string } | null> {
   const config = providerConfigId
     ? await db.prepare(
-        "SELECT id, provider, model, api_key_encrypted, key_version FROM provider_configs WHERE id = ? AND user_id = ?",
-      ).bind(providerConfigId, userId).first<{ id: string; provider: string; model: string; api_key_encrypted: string; key_version: string }>()
+        "SELECT id, provider, model, api_key_encrypted, key_version, paused_at FROM provider_configs WHERE id = ? AND user_id = ?",
+      ).bind(providerConfigId, userId).first<{ id: string; provider: string; model: string; api_key_encrypted: string; key_version: string; paused_at: string | null }>()
     : await db.prepare(
-        "SELECT id, provider, model, api_key_encrypted, key_version FROM provider_configs WHERE user_id = ? ORDER BY is_default DESC LIMIT 1",
-      ).bind(userId).first<{ id: string; provider: string; model: string; api_key_encrypted: string; key_version: string }>();
+        "SELECT id, provider, model, api_key_encrypted, key_version, paused_at FROM provider_configs WHERE user_id = ? AND paused_at IS NULL ORDER BY is_default DESC LIMIT 1",
+      ).bind(userId).first<{ id: string; provider: string; model: string; api_key_encrypted: string; key_version: string; paused_at: string | null }>();
 
   if (!config) return null;
+
+  if (config.paused_at) return null;
 
   const keyVersion = config.key_version || "v1";
 

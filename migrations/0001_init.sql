@@ -35,6 +35,7 @@ CREATE TABLE provider_configs (
   key_version TEXT NOT NULL DEFAULT 'v1',
   is_default INTEGER NOT NULL DEFAULT 0,
   daily_spend_limit_cents INTEGER,
+  paused_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)

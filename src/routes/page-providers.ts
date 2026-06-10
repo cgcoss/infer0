@@ -11,7 +11,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
 
   const today = new Date().toISOString().slice(0, 10);
   const { results } = await c.env.DB.prepare(
-    "SELECT id, provider, model, name, is_default, daily_spend_limit_cents, created_at FROM provider_configs WHERE user_id = ? ORDER BY created_at DESC",
+    "SELECT id, provider, model, name, is_default, daily_spend_limit_cents, paused_at, created_at FROM provider_configs WHERE user_id = ? ORDER BY created_at DESC",
   ).bind(user.id).all();
 
   const usageRows = await c.env.DB.prepare(
@@ -39,12 +39,15 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
         const todayCents = usageMap[p.id] ?? 0;
         const limitCents = p.daily_spend_limit_cents;
         const exceeded = limitCents !== null && todayCents >= limitCents;
+        const isPaused = !!p.paused_at;
         return html`
-        <div class="record-card" style="${exceeded ? 'opacity:0.6' : ''}">
+        <div class="record-card" style="${exceeded || isPaused ? 'opacity:0.6' : ''}">
           <div class="card-title">
             ${p.provider}${p.model ? html` &middot; ${p.model}` : ""}
             ${p.is_default ? html`<span class="badge badge-default" style="margin-left:8px">default</span>` : ""}
-            ${exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
+            ${isPaused
+              ? html`<span class="badge" style="margin-left:8px;background:#d97706;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Paused</span>`
+              : exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
           </div>
           ${p.name ? html`<div class="card-sub">${p.name}</div>` : ""}
           <div class="card-divider"></div>
@@ -55,11 +58,15 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
           </div>
           <div class="card-divider"></div>
           <div class="spend-limit-form">
-            <input type="number" class="spend-limit-input" data-id="${p.id}" placeholder="Daily limit ($)" value="${limitCents !== null ? (limitCents / 100).toFixed(2) : ""}" min="0" step="0.01" />
+            <input type="number" class="spend-limit-input" data-id="${p.id}" placeholder="Daily limit ($)" value="${limitCents !== null ? (limitCents / 100).toFixed(2) : ""}" min="0" step="0.01" ${isPaused ? 'disabled' : ''} />
             <button class="btn-save-limit" data-id="${p.id}">${limitCents !== null ? "Update" : "Set limit"}</button>
             ${limitCents !== null ? html`<button class="btn-remove-limit" data-id="${p.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.8125rem">Remove</button>` : ""}
           </div>
           <div class="card-actions">
+            ${isPaused
+              ? html`<button class="btn-resume" data-id="${p.id}" style="background:var(--accent);color:#fff;border:none;padding:4px 12px;border-radius:4px;font-size:0.75rem;cursor:pointer">Resume</button>`
+              : html`<button class="btn-pause" data-id="${p.id}" style="background:none;border:1px solid var(--border);color:var(--text);padding:4px 12px;border-radius:4px;font-size:0.75rem;cursor:pointer">Pause</button>`
+            }
             ${!p.is_default ? html`<button class="btn-set-default" data-id="${p.id}" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.8125rem">Set as default</button>` : ""}
             <form method="POST" action="/v1/providers/${p.id}/delete" style="display:inline">
               <button type="submit" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.8125rem">Remove</button>
@@ -107,6 +114,22 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ daily_spend_limit_cents: null }),
       });
+      location.reload();
+    });
+  });
+
+  document.querySelectorAll('.btn-pause').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      await fetch('/v1/providers/' + id + '/pause', { method: 'PUT' });
+      location.reload();
+    });
+  });
+
+  document.querySelectorAll('.btn-resume').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      await fetch('/v1/providers/' + id + '/resume', { method: 'PUT' });
       location.reload();
     });
   });

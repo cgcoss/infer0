@@ -37,6 +37,7 @@ export interface ProviderConfig {
   key_version: string;
   is_default: number;
   daily_spend_limit_cents: number | null;
+  paused_at: string | null;
   created_at: string;
   updated_at: string;
 }
