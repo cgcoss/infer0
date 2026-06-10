@@ -134,17 +134,38 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
     });
   });
   </script>
+  <script>
+  const MODELS = {
+    openai: ["gpt-4o", "gpt-4o-mini", "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "o1", "o3-mini"],
+    anthropic: ["claude-sonnet-4-5", "claude-3-5-haiku", "claude-3-5-sonnet", "claude-3-opus", "claude-3-haiku"],
+    "google-ai-studio": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+  };
+  function updateModels() {
+    const provider = document.getElementById("provider-select").value;
+    const input = document.getElementById("model-input");
+    const list = document.getElementById("model-suggestions");
+    list.innerHTML = "";
+    if (!provider) {
+      input.placeholder = "Select a provider first";
+      return;
+    }
+    input.placeholder = "Type or select a model";
+    const models = MODELS[provider] || [];
+    models.forEach(m => { const o = document.createElement("option"); o.value = m; list.appendChild(o); });
+  }
+  </script>
 
   <h2>Add Provider</h2>
   <form method="POST" action="/v1/providers" style="display:flex;flex-direction:column;gap:12px;max-width:400px">
     <input type="text" name="name" placeholder="Label (e.g. Work GPT-4, Personal Claude)" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
-    <select name="provider" required style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem">
+    <select name="provider" id="provider-select" required style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" onchange="updateModels()">
       <option value="">Select provider</option>
       <option value="openai">OpenAI</option>
       <option value="anthropic">Anthropic</option>
       <option value="google-ai-studio">Google AI</option>
     </select>
-    <input type="text" name="model" placeholder="Model (e.g. gpt-4)" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
+    <input type="text" name="model" id="model-input" list="model-suggestions" placeholder="Select a provider first" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
+    <datalist id="model-suggestions"></datalist>
     <input type="password" name="api_key" placeholder="API key" required style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
     <label style="font-size:0.875rem;color:var(--text-muted);display:flex;align-items:center;gap:8px">
       <input type="checkbox" name="is_default" value="1" />
