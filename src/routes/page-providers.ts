@@ -45,16 +45,8 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
           <div class="card-title">
             ${p.provider}
             ${p.model ? html`
-              <span class="model-display" data-id="${p.id}" data-provider="${p.provider}">
-                &middot; <span class="model-name" data-id="${p.id}">${p.model}</span>
-                <button class="btn-edit-model" data-id="${p.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;padding:0;margin-left:2px">&#9998;</button>
-              </span>
-              <span class="model-editor" data-id="${p.id}" style="display:none">
-                &middot; <input type="text" class="model-edit-input" data-id="${p.id}" list="model-edit-suggestions-${p.id}" value="${p.model}" style="width:180px;background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:2px 6px;color:var(--text);font-size:0.8125rem" />
-                <datalist id="model-edit-suggestions-${p.id}"></datalist>
-                <button class="btn-save-model" data-id="${p.id}" style="background:var(--accent);color:#fff;border:none;padding:2px 8px;border-radius:4px;font-size:0.7rem;cursor:pointer">Save</button>
-                <button class="btn-cancel-model" data-id="${p.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.7rem;margin-left:4px">Cancel</button>
-              </span>
+              <span class="model-display" data-id="${p.id}" data-provider="${p.provider}">&middot; ${p.model}</span>
+              <select class="model-select" data-id="${p.id}" style="display:none"></select>
             ` : ""}
             ${p.is_default ? html`<span class="badge badge-default" style="margin-left:8px">default</span>` : ""}
             ${isPaused
@@ -147,30 +139,43 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
   });
   </script>
   <script>
-  function populateModelList(listId, provider) {
-    var list = document.getElementById(listId);
-    list.innerHTML = "";
-    (MODELS[provider] || []).forEach(function(m) { var o = document.createElement("option"); o.value = m; list.appendChild(o); });
+  var activeSelect = null;
+  function closeActiveSelect() {
+    if (activeSelect) {
+      var id = activeSelect.dataset.id;
+      activeSelect.style.display = 'none';
+      document.querySelector('.model-display[data-id="' + id + '"]').style.display = 'inline';
+      activeSelect = null;
+    }
   }
 
-  document.querySelectorAll('.btn-edit-model').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = btn.dataset.id;
-      document.querySelector('.model-display[data-id="' + id + '"]').style.display = 'none';
-      document.querySelector('.model-editor[data-id="' + id + '"]').style.display = 'inline';
-      var provider = document.querySelector('.model-display[data-id="' + id + '"]').dataset.provider;
-      populateModelList('model-edit-suggestions-' + id, provider);
-      var input = document.querySelector('.model-edit-input[data-id="' + id + '"]');
-      input.focus();
-      input.select();
+  document.querySelectorAll('.model-display').forEach(function(span) {
+    span.addEventListener('click', function() {
+      if (activeSelect) closeActiveSelect();
+      var id = span.dataset.id;
+      span.style.display = 'none';
+      var select = document.querySelector('.model-select[data-id="' + id + '"]');
+      select.innerHTML = '';
+      var provider = span.dataset.provider;
+      var models = MODELS[provider] || [];
+      var current = span.textContent.replace('\u00B7', '').trim();
+      models.forEach(function(m) {
+        var o = document.createElement('option');
+        o.value = m;
+        o.textContent = m;
+        if (m === current) o.selected = true;
+        select.appendChild(o);
+      });
+      select.style.display = 'inline-block';
+      select.focus();
+      activeSelect = select;
     });
   });
 
-  document.querySelectorAll('.btn-save-model').forEach(function(btn) {
-    btn.addEventListener('click', async function() {
-      var id = btn.dataset.id;
-      var input = document.querySelector('.model-edit-input[data-id="' + id + '"]');
-      var model = input.value.trim();
+  document.querySelectorAll('.model-select').forEach(function(select) {
+    select.addEventListener('change', async function() {
+      var id = select.dataset.id;
+      var model = select.value;
       await fetch('/v1/providers/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -178,27 +183,13 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
       });
       location.reload();
     });
-  });
-
-  document.querySelectorAll('.btn-cancel-model').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = btn.dataset.id;
-      document.querySelector('.model-display[data-id="' + id + '"]').style.display = 'inline';
-      document.querySelector('.model-editor[data-id="' + id + '"]').style.display = 'none';
-      var input = document.querySelector('.model-edit-input[data-id="' + id + '"]');
-      var original = document.querySelector('.model-name[data-id="' + id + '"]');
-      input.value = original ? original.textContent : '';
+    select.addEventListener('blur', function() {
+      setTimeout(function() {
+        if (activeSelect === select) closeActiveSelect();
+      }, 150);
     });
-  });
-
-  document.querySelectorAll('.model-edit-input').forEach(function(input) {
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        document.querySelector('.btn-save-model[data-id="' + input.dataset.id + '"]').click();
-      } else if (e.key === 'Escape') {
-        document.querySelector('.btn-cancel-model[data-id="' + input.dataset.id + '"]').click();
-      }
+    select.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeActiveSelect();
     });
   });
 
