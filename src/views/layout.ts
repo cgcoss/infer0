@@ -14,16 +14,16 @@ export function Layout({ title, user, children }: LayoutProps) {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>${title} | infer0</title>
-        <meta name="description" content="infer0 is an inference routing service. Developers integrate once, end users bring their own provider." />
+        <meta name="description" content="Bring your own intelligence. infer0 lets end users connect their AI provider keys and authorize apps, while developers integrate once and route to any provider." />
         <meta property="og:title" content="${title} | infer0" />
-        <meta property="og:description" content="infer0 is an inference routing service. Developers integrate once, end users bring their own provider." />
+        <meta property="og:description" content="Bring your own intelligence. infer0 lets end users connect their AI provider keys and authorize apps, while developers integrate once and route to any provider." />
         <meta property="og:image" content="https://infer0.com/og-image" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="${title} | infer0" />
-        <meta name="twitter:description" content="infer0 is an inference routing service. Developers integrate once, end users bring their own provider." />
+        <meta name="twitter:description" content="Bring your own intelligence. infer0 lets end users connect their AI provider keys and authorize apps, while developers integrate once and route to any provider." />
         <meta name="twitter:image" content="https://infer0.com/og-image" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
