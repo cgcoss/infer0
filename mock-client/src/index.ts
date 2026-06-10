@@ -212,6 +212,7 @@ const messageInput = document.getElementById('message');
 const sendBtn = document.getElementById('send-btn');
 const chat = document.getElementById('chat');
 const signInBtn = document.getElementById('sign-in-btn');
+const messages = [];
 
 if (accessToken) {
   signInCard.style.display = 'none';
@@ -258,11 +259,13 @@ sendBtn.addEventListener('click', async () => {
 
   messageInput.value = '';
   addMessage('user', text);
+  messages.push({ role: 'user', content: text });
 
   sendBtn.disabled = true;
   sendBtn.textContent = 'Streaming...';
 
   const contentDiv = addMessage('assistant', '');
+  let responseText = '';
 
   try {
     const res = await fetch('/api/chat/stream', {
@@ -270,7 +273,7 @@ sendBtn.addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         accessToken,
-        messages: [{ role: 'user', content: text }],
+        messages,
       }),
     });
 
@@ -283,27 +286,33 @@ sendBtn.addEventListener('click', async () => {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      const lines = buffer.split('\\n');
-      buffer = lines.pop() || '';
+      const parts = buffer.split('\\n\\n');
+      buffer = parts.pop() || '';
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6);
-        if (data === '[DONE]') continue;
-        try {
-          const json = JSON.parse(data);
-          if (json.error) {
-            contentDiv.textContent += '\\n[Error: ' + json.error + ']';
-          } else if (json.content) {
-            contentDiv.textContent += json.content;
-            contentDiv.scrollIntoView({ behavior: 'smooth' });
-          }
-        } catch {}
+      for (const part of parts) {
+        for (const line of part.split('\\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            const json = JSON.parse(data);
+            if (json.error) {
+              contentDiv.textContent += '\\n[Error: ' + json.error + ']';
+              responseText += '\\n[Error: ' + json.error + ']';
+            } else if (json.content) {
+              contentDiv.textContent += json.content;
+              contentDiv.scrollIntoView({ behavior: 'smooth' });
+              responseText += json.content;
+            }
+          } catch {}
+        }
       }
     }
   } catch (e) {
     contentDiv.textContent += '\\n[Network error: ' + e.message + ']';
+    responseText += '\\n[Network error: ' + e.message + ']';
   } finally {
+    messages.push({ role: 'assistant', content: responseText });
     sendBtn.disabled = false;
     sendBtn.textContent = 'Send';
   }
