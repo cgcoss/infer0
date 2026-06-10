@@ -186,6 +186,7 @@ function renderHTML(clientId: string): string { return `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="client-id" content="${clientId}" />
 <title>infer0 Test Client</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0a0a0b;--bg-card:#141416;--bg-hover:#1c1c1f;--border:#27272a;--text:#fafafa;--text-muted:#a1a1aa;--accent:#6366f1;--radius:8px}
@@ -212,6 +213,17 @@ button:disabled{opacity:0.5;cursor:not-allowed}
 .badge{display:inline-block;background:var(--bg-hover);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:0.6875rem;color:var(--text-muted);margin-bottom:16px}
 .hint{font-size:0.75rem;color:var(--text-muted);margin-top:4px}
 a{color:var(--accent)}
+pre code.hljs{background:transparent!important;padding:0!important}
+.hljs{color:var(--text)!important;background:transparent!important}
+.hljs-keyword{color:#f59e0b!important}
+.hljs-string{color:#a3e635!important}
+.hljs-number{color:#f97316!important}
+.hljs-built_in{color:#f59e0b!important}
+.hljs-function{color:#60a5fa!important}
+.hljs-title{color:#60a5fa!important}
+.hljs-property{color:#60a5fa!important}
+.hljs-comment,.hljs-quote{color:#6a6a5e!important;font-style:italic!important}
+.hljs-variable{color:var(--text)!important}
 </style>
 </head>
 <body>
@@ -220,7 +232,7 @@ a{color:var(--accent)}
 <h1><span>infer0</span> Test Client</h1>
 <p>A third-party app powered by <a href="https://infer0.com" target="_blank">infer0</a>.</p>
 
-<pre><code>const res = await fetch("https://infer0.com/v1/chat/completions", {
+<pre><code class="language-javascript">const res = await fetch("https://infer0.com/v1/chat/completions", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -389,5 +401,7 @@ messageInput.addEventListener('keydown', (e) => {
   }
 });
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
 </body>
 </html>`; }
