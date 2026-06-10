@@ -69,7 +69,7 @@ async function handleInference(c: AppContext): Promise<Response> {
   }
 
   const oauthAuth = await c.env.DB.prepare(
-    `SELECT oa.oauth_app_id, oa.revoked_at, app.name as app_name,
+    `SELECT oa.oauth_app_id, oa.revoked_at, oa.paused_at, app.name as app_name,
             COALESCE(aa.provider_config_id, oa.provider_config_id) as provider_config_id
      FROM oauth_authorizations oa
      JOIN oauth_apps app ON app.id = oa.oauth_app_id
@@ -79,11 +79,16 @@ async function handleInference(c: AppContext): Promise<Response> {
     provider_config_id: string | null;
     oauth_app_id: string;
     revoked_at: string | null;
+    paused_at: string | null;
     app_name: string;
   }>();
 
   if (!oauthAuth || oauthAuth.revoked_at) {
     return c.json({ error: { message: "Authorization revoked or not found", code: "auth_revoked" } }, 403);
+  }
+
+  if (oauthAuth.paused_at) {
+    return c.json({ error: { message: "Authorization is paused", code: "auth_paused" } }, 403);
   }
 
   const provider = await getUserProvider(c.env.DB, auth.userId, c.env.ENCRYPTION_KEY, oauthAuth.provider_config_id, c.env.ENCRYPTION_KEY_PREVIOUS);

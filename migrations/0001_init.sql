@@ -85,6 +85,7 @@ CREATE TABLE oauth_authorizations (
   oauth_app_id TEXT NOT NULL,
   provider_config_id TEXT,
   daily_spend_limit_cents INTEGER,
+  paused_at TEXT,
   authorization_code TEXT,
   code_expires_at TEXT,
   access_token_hash TEXT,

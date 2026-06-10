@@ -18,7 +18,10 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
                ORDER BY created_at DESC LIMIT 1) AS oauth_authorization_id,
               (SELECT daily_spend_limit_cents FROM oauth_authorizations
                WHERE user_id = a.user_id AND oauth_app_id = a.oauth_app_id AND revoked_at IS NULL
-               ORDER BY created_at DESC LIMIT 1) AS daily_spend_limit_cents
+               ORDER BY created_at DESC LIMIT 1) AS daily_spend_limit_cents,
+              (SELECT paused_at FROM oauth_authorizations
+               WHERE user_id = a.user_id AND oauth_app_id = a.oauth_app_id AND revoked_at IS NULL
+               ORDER BY created_at DESC LIMIT 1) AS paused_at
        FROM authorized_apps a
        WHERE a.user_id = ?
        ORDER BY a.created_at DESC`,
@@ -55,18 +58,22 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
         const todayCents = usageByAuth[a.oauth_authorization_id] ?? 0;
         const limitCents = a.daily_spend_limit_cents;
         const exceeded = limitCents !== null && todayCents >= limitCents;
+        const isPaused = !!a.paused_at;
+        const disabled = a.revoked_at || isPaused;
         return html`
-        <div class="record-card" style="${exceeded ? 'opacity:0.6' : ''}">
+        <div class="record-card" style="${exceeded || isPaused ? 'opacity:0.6' : ''}">
           <div class="card-title">
             ${a.developer_name || html`<code>${a.app_prefix}...</code>`}
             ${a.revoked_at
               ? html`<span class="badge badge-revoked" style="float:right">Revoked</span>`
-              : html`<span class="badge badge-active" style="float:right">Active</span>`}
-            ${exceeded ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
+              : isPaused
+                ? html`<span class="badge" style="float:right;background:#d97706;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">Paused</span>`
+                : html`<span class="badge badge-active" style="float:right">Active</span>`}
+            ${exceeded && !isPaused ? html`<span class="badge" style="margin-left:8px;background:#ef4444;color:#fff;font-size:0.7rem;padding:1px 6px;border-radius:4px">paused</span>` : ""}
           </div>
           <div class="card-row">
             <span class="card-label">Provider</span>
-            <select class="card-select provider-select" data-app-id="${a.id}" ${a.revoked_at ? 'disabled' : ''}>
+            <select class="card-select provider-select" data-app-id="${a.id}" ${disabled ? 'disabled' : ''}>
               <option value="">Default provider</option>
               ${providers.map(p => html`
                 <option value="${p.id}" ${a.provider_config_id === p.id ? 'selected' : ''}>${p.name || p.provider + ' ' + p.model}</option>
@@ -81,7 +88,7 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
           </div>
           <div class="card-divider"></div>
           <div class="spend-limit-form">
-            <input type="number" class="spend-limit-input" data-app-id="${a.id}" placeholder="Daily limit ($)" value="${limitCents !== null ? (limitCents / 100).toFixed(2) : ""}" min="0" step="0.01" ${a.revoked_at ? 'disabled' : ''} />
+            <input type="number" class="spend-limit-input" data-app-id="${a.id}" placeholder="Daily limit ($)" value="${limitCents !== null ? (limitCents / 100).toFixed(2) : ""}" min="0" step="0.01" ${disabled ? 'disabled' : ''} />
             <button class="btn-save-limit" data-app-id="${a.id}">${limitCents !== null ? "Update" : "Set limit"}</button>
             ${limitCents !== null ? html`<button class="btn-remove-limit" data-app-id="${a.id}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.8125rem">Remove</button>` : ""}
           </div>
@@ -99,9 +106,19 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
             <span><time datetime="${a.revoked_at.replace(' ', 'T')}Z">${a.revoked_at}</time></span>
           </div>
           ` : ''}
+          ${isPaused && a.paused_at ? html`
+          <div class="card-row">
+            <span class="card-label">Paused</span>
+            <span><time datetime="${a.paused_at.replace(' ', 'T')}Z">${a.paused_at}</time></span>
+          </div>
+          ` : ''}
           <div class="card-divider"></div>
           <div class="card-actions">
             ${!a.revoked_at ? html`
+              ${isPaused
+                ? html`<button class="btn-resume" data-app-id="${a.id}" style="background:var(--accent);color:#fff;border:none;padding:4px 12px;border-radius:4px;font-size:0.75rem;cursor:pointer">Resume</button>`
+                : html`<button class="btn-pause" data-app-id="${a.id}" style="background:none;border:1px solid var(--border);color:var(--text);padding:4px 12px;border-radius:4px;font-size:0.75rem;cursor:pointer">Pause</button>`
+              }
               <form method="POST" action="/v1/authorized-apps/${a.id}/revoke" style="display:inline">
                 <button type="submit" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:4px;font-size:0.75rem;cursor:pointer">Revoke</button>
               </form>
@@ -144,6 +161,20 @@ servicePageRoutes.get("/services", requireAuth, async (c) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ daily_spend_limit_cents: null }),
         });
+        location.reload();
+      });
+    });
+    document.querySelectorAll('.btn-pause').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.appId;
+        await fetch('/v1/authorized-apps/' + appId + '/pause', { method: 'PUT' });
+        location.reload();
+      });
+    });
+    document.querySelectorAll('.btn-resume').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.dataset.appId;
+        await fetch('/v1/authorized-apps/' + appId + '/resume', { method: 'PUT' });
         location.reload();
       });
     });
