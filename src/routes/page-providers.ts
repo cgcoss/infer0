@@ -142,7 +142,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
       <option value="">Select provider</option>
       <option value="openai">OpenAI</option>
       <option value="anthropic">Anthropic</option>
-      <option value="google">Google AI</option>
+      <option value="google-ai-studio">Google AI</option>
     </select>
     <input type="text" name="model" placeholder="Model (e.g. gpt-4)" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
     <input type="password" name="api_key" placeholder="API key" required style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />

@@ -1,5 +1,3 @@
-import OpenAI from "openai";
-
 interface Env {
   INFER0_API: string;
   CLIENT_ID: string;
@@ -16,6 +14,14 @@ export default {
 
     if (url.pathname === "/api/chat/stream" && request.method === "POST") {
       return handleChatStream(request, env);
+    }
+
+    if (url.pathname === "/api/raw-debug" && request.method === "POST") {
+      return handleRawDebug(request, env);
+    }
+
+    if (url.pathname === "/api/debug" && request.method === "POST") {
+      return handleDebug(request, env);
     }
 
     if (url.pathname === "/") {
@@ -71,6 +77,36 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function handleRawDebug(request: Request, env: Env): Promise<Response> {
+  try {
+    const { accessToken, messages } = await request.json<{
+      accessToken: string;
+      messages: Array<{ role: string; content: string }>;
+    }>();
+
+    const gwRes = await fetch(`${env.INFER0_API}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ messages, stream: true }),
+    });
+
+    const contentType = gwRes.headers.get("content-type") ?? "";
+    const body = await gwRes.text();
+
+    return Response.json({
+      status: gwRes.status,
+      contentType,
+      bodyLength: body.length,
+      preview: body.slice(0, 5000),
+    });
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
+}
+
 async function handleChatStream(request: Request, env: Env): Promise<Response> {
   try {
     const { accessToken, messages } = await request.json<{
@@ -85,33 +121,83 @@ async function handleChatStream(request: Request, env: Env): Promise<Response> {
       );
     }
 
-    const client = new OpenAI({
-      baseURL: `${env.INFER0_API}/v1`,
-      apiKey: accessToken,
+    const gwRes = await fetch(`${env.INFER0_API}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ messages, stream: true }),
     });
 
-    const stream = await client.chat.completions.create({
-      model: "ignored",
-      messages,
-      stream: true,
-    });
+    if (!gwRes.ok) {
+      const errText = await gwRes.text();
+      return Response.json(
+        { error: { message: `HTTP ${gwRes.status}: ${errText.slice(0, 500)}` } },
+        { status: gwRes.status },
+      );
+    }
 
+    const contentType = gwRes.headers.get("content-type") ?? "";
+    if (!contentType.includes("event-stream")) {
+      const data = await gwRes.json() as Record<string, unknown>;
+      return Response.json(data);
+    }
+
+    const reader = gwRes.body!.getReader();
+    const decoder = new TextDecoder();
     const encoder = new TextEncoder();
+
+    let bodySize = 0;
+
     const body = new ReadableStream({
       async start(controller) {
+        let buf = "";
         try {
-          for await (const chunk of stream) {
-            const content = chunk.choices?.[0]?.delta?.content || "";
-            if (content) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`));
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            bodySize += value.length;
+            buf += decoder.decode(value, { stream: true });
+            const parts = buf.split("\n\n");
+            buf = parts.pop() ?? "";
+            for (const part of parts) {
+              for (const line of part.split("\n")) {
+                if (!line.startsWith("data: ")) continue;
+                const data = line.slice(6);
+                if (data === "[DONE]") {
+                  controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                  continue;
+                }
+                try {
+                  const json = JSON.parse(data);
+                  const content =
+                    json.choices?.[0]?.delta?.content ?? "";
+                  if (content) {
+                    controller.enqueue(
+                      encoder.encode(`data: ${JSON.stringify({ content })}\n\n`),
+                    );
+                  }
+                  if (json.choices?.[0]?.finish_reason) {
+                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                  }
+                } catch {
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ error: "parse error: " + data.slice(0, 200) })}\n\n`),
+                  );
+                }
+              }
             }
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (e) {
-          const msg = e instanceof Error ? e.message : "Stream error";
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ error: e instanceof Error ? e.message : "stream error" })}\n\n`,
+            ),
+          );
         } finally {
-          controller.close();
+          try { controller.close(); } catch {}
         }
       },
     });
@@ -121,6 +207,7 @@ async function handleChatStream(request: Request, env: Env): Promise<Response> {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
+        "X-Debug-Body-Size": String(bodySize),
       },
     });
   } catch (e) {
@@ -128,6 +215,36 @@ async function handleChatStream(request: Request, env: Env): Promise<Response> {
       { error: { message: e instanceof Error ? e.message : "Unknown error" } },
       { status: 500 },
     );
+  }
+}
+
+async function handleDebug(request: Request, env: Env): Promise<Response> {
+  try {
+    const { accessToken, messages } = await request.json<{
+      accessToken: string;
+      messages: Array<{ role: string; content: string }>;
+    }>();
+
+    const gwRes = await fetch(`${env.INFER0_API}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ messages, stream: true }),
+    });
+
+    const contentType = gwRes.headers.get("content-type") ?? "";
+    const body = await gwRes.text();
+
+    return Response.json({
+      status: gwRes.status,
+      contentType,
+      bodyLength: body.length,
+      bodyPreview: body.slice(0, 2000),
+    });
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
 
@@ -199,8 +316,10 @@ for await (const chunk of stream) {
   <div class="input-row">
     <input type="text" id="message" placeholder="Type a message..." autocomplete="off" />
     <button id="send-btn">Send</button>
+    <button id="debug-btn" style="background:#444" title="Show raw infer0 response">Debug</button>
   </div>
 </div>
+<pre id="debug-panel" style="display:none;margin-top:12px;background:#1c1c1f;border:1px solid #27272a;border-radius:8px;padding:12px;font-size:0.7rem;overflow-x:auto;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></pre>
 </div>
 
 <script>
@@ -289,6 +408,7 @@ sendBtn.addEventListener('click', async () => {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let sawData = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -303,19 +423,29 @@ sendBtn.addEventListener('click', async () => {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6);
           if (data === '[DONE]') continue;
-          try {
-            const json = JSON.parse(data);
-            if (json.error) {
-              contentDiv.textContent += '\\n[Error: ' + json.error + ']';
-              responseText += '\\n[Error: ' + json.error + ']';
-            } else if (json.content) {
-              contentDiv.textContent += json.content;
-              contentDiv.scrollIntoView({ behavior: 'smooth' });
-              responseText += json.content;
-            }
-          } catch {}
+          sawData = true;
+            try {
+              const json = JSON.parse(data);
+              if (json.error) {
+                contentDiv.textContent += json.error;
+                responseText += json.error;
+              } else {
+                const content = json.content || '';
+                if (content) {
+                  contentDiv.textContent += content;
+                  contentDiv.scrollIntoView({ behavior: 'smooth' });
+                  responseText += content;
+                }
+              }
+            } catch {}
         }
       }
+    }
+
+    if (!sawData && !responseText) {
+      contentDiv.textContent = 'Empty response (status: ' + res.status + ', type: ' + res.headers.get('content-type') + ', size: ' + res.headers.get('x-debug-body-size') + ', raw: ' + buffer.slice(0, 500) + ')';
+      contentDiv.className = 'msg error';
+      responseText = 'Empty response';
     }
   } catch (e) {
     contentDiv.textContent += '\\n[Network error: ' + e.message + ']';
@@ -333,6 +463,27 @@ messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendBtn.click();
+  }
+});
+
+document.getElementById('debug-btn').addEventListener('click', async () => {
+  const panel = document.getElementById('debug-panel');
+  if (panel.style.display === 'block') {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  panel.textContent = 'Sending raw debug request...';
+  try {
+    const res = await fetch('/api/raw-debug', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accessToken, messages: messages.slice(-1) }),
+    });
+    const data = await res.json();
+    panel.textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    panel.textContent = 'Debug error: ' + e.message;
   }
 });
 </script>
