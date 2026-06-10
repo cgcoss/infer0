@@ -231,10 +231,17 @@ function addMessage(role, content) {
   if (empty) empty.remove();
   const msg = document.createElement('div');
   msg.className = 'msg ' + role;
-  msg.innerHTML = '<div class="role">' + role + '</div>' + escapeHtml(content);
+  const roleDiv = document.createElement('div');
+  roleDiv.className = 'role';
+  roleDiv.textContent = role;
+  msg.appendChild(roleDiv);
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'content';
+  contentDiv.textContent = content;
+  msg.appendChild(contentDiv);
   chat.appendChild(msg);
   chat.scrollTop = chat.scrollHeight;
-  return msg;
+  return contentDiv;
 }
 
 function escapeHtml(s) {
@@ -255,7 +262,7 @@ sendBtn.addEventListener('click', async () => {
   sendBtn.disabled = true;
   sendBtn.textContent = 'Streaming...';
 
-  const aiMsg = addMessage('assistant', '');
+  const contentDiv = addMessage('assistant', '');
 
   try {
     const res = await fetch('/api/chat/stream', {
@@ -276,7 +283,7 @@ sendBtn.addEventListener('click', async () => {
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      const lines = buffer.split('\n');
+      const lines = buffer.split('\\n');
       buffer = lines.pop() || '';
 
       for (const line of lines) {
@@ -286,16 +293,16 @@ sendBtn.addEventListener('click', async () => {
         try {
           const json = JSON.parse(data);
           if (json.error) {
-            aiMsg.textContent += '\n[Error: ' + json.error + ']';
+            contentDiv.textContent += '\\n[Error: ' + json.error + ']';
           } else if (json.content) {
-            aiMsg.textContent += json.content;
-            aiMsg.scrollIntoView({ behavior: 'smooth' });
+            contentDiv.textContent += json.content;
+            contentDiv.scrollIntoView({ behavior: 'smooth' });
           }
         } catch {}
       }
     }
   } catch (e) {
-    aiMsg.textContent += '\n[Network error: ' + e.message + ']';
+    contentDiv.textContent += '\\n[Network error: ' + e.message + ']';
   } finally {
     sendBtn.disabled = false;
     sendBtn.textContent = 'Send';
