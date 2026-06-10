@@ -277,6 +277,15 @@ sendBtn.addEventListener('click', async () => {
       }),
     });
 
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
+      const msg = err.error?.message || 'Request failed';
+      contentDiv.textContent = msg;
+      contentDiv.className = 'msg error';
+      responseText = msg;
+      return;
+    }
+
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -312,7 +321,9 @@ sendBtn.addEventListener('click', async () => {
     contentDiv.textContent += '\\n[Network error: ' + e.message + ']';
     responseText += '\\n[Network error: ' + e.message + ']';
   } finally {
-    messages.push({ role: 'assistant', content: responseText });
+    if (responseText) {
+      messages.push({ role: 'assistant', content: responseText });
+    }
     sendBtn.disabled = false;
     sendBtn.textContent = 'Send';
   }
