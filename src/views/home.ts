@@ -123,11 +123,11 @@ export function HomeView({ user }: HomeViewProps) {
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
               <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:6px">Encrypted credentials</h3>
-              <p style="margin:0;font-size:0.8125rem">Provider API keys use AES-256-GCM before storage. Tokens are hashed. Encryption keys live in Cloudflare's secure infrastructure, separate from the database.</p>
+               <p style="margin:0;font-size:0.8125rem">Provider API keys are encrypted with AES-256-GCM before storage. Tokens are hashed. Encryption keys are managed separately from the database.</p>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
               <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:6px">Staff cannot read keys</h3>
-              <p style="margin:0;font-size:0.8125rem">Encrypted data cannot be read by infer0 staff. The encryption keys are stored in Cloudflare's secure infrastructure, separate from the database.</p>
+               <p style="margin:0;font-size:0.8125rem">Encrypted data cannot be read by infer0 staff. Encryption keys are managed separately from the database and never exposed to the application.</p>
             </div>
             <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
               <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:6px">Revoke anytime</h3>

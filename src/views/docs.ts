@@ -362,12 +362,12 @@ grant_type=refresh_token&refresh_token=&lt;refresh_token&gt;&client_id=&lt;clien
 
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:12px">
             <h3 style="font-size:0.9375rem;font-weight:600;margin-bottom:6px">Credentials are encrypted.</h3>
-            <p style="margin:0;font-size:0.875rem;color:var(--text-muted)">Provider API keys are encrypted with AES-256-GCM before storage. Access tokens and refresh tokens are hashed. Encryption keys are managed by Cloudflare's secure infrastructure and never exposed to the application.</p>
+            <p style="margin:0;font-size:0.875rem;color:var(--text-muted)">Provider API keys are encrypted with AES-256-GCM before storage. Access tokens and refresh tokens are hashed. Encryption keys are managed separately from the database and never exposed to the application.</p>
           </div>
 
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:12px">
             <h3 style="font-size:0.9375rem;font-weight:600;margin-bottom:6px">Staff cannot read your keys.</h3>
-            <p style="margin:0;font-size:0.875rem;color:var(--text-muted)">Encrypted data cannot be read by infer0 staff. The encryption keys are stored in Cloudflare's secure infrastructure, separate from the database.</p>
+             <p style="margin:0;font-size:0.875rem;color:var(--text-muted)">Encrypted data cannot be read by infer0 staff. Encryption keys are managed separately from the database.</p>
           </div>
 
           <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:12px">
