@@ -218,20 +218,28 @@ a{color:var(--accent)}
 <div class="container">
 <div class="badge">infer0 Test Client</div>
 <h1><span>infer0</span> Test Client</h1>
-<p>A third-party app powered by <a href="https://infer0.com" target="_blank">infer0</a>. Uses the OpenAI SDK with <code>stream: true</code>.</p>
+<p>A third-party app powered by <a href="https://infer0.com" target="_blank">infer0</a>.</p>
 
-<pre><code>const client = new OpenAI({
-  baseURL: "https://infer0.com/v1",
-  apiKey: accessToken,
+<pre><code>const res = await fetch("https://infer0.com/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: "Bearer " + accessToken,
+  },
+  body: JSON.stringify({ messages, stream: true }),
 });
 
-const stream = await client.chat.completions.create({
-  messages: [{ role: "user", content: "..." }],
-  stream: true,
-});
+const reader = res.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
 
-for await (const chunk of stream) {
-  chunk.choices[0]?.delta?.content;
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  buffer += decoder.decode(value, { stream: true });
+  for (const p of buffer.split("\\n\\n")) {
+    // parse and render chunks
+  }
 }</code></pre>
 
 <div class="card" id="sign-in-card">
