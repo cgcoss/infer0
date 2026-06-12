@@ -77,11 +77,28 @@ grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&clie
 
           <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Send your request in Chat Completions, Messages, or Responses format — whichever matches your SDK. infer0 translates the response from the upstream provider back to the format you sent, regardless of which provider handles it.</p>
 
-          <div class="endpoint">
-            <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
-            <p style="margin:0 0 12px 0">Chat Completions format (OpenAI SDK).</p>
+          <style>
+            .docs-tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px }
+            .docs-tab { padding:10px 16px; cursor:pointer; font-size:0.8125rem; color:var(--text-muted); border:1px solid transparent; border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; background:transparent; transition:all .15s; font-family:var(--font-body) }
+            .docs-tab:hover { color:var(--text); background:var(--bg-hover) }
+            .docs-tab.active { color:var(--accent); border-color:var(--border); background:var(--bg-card); margin-bottom:-1px }
+            .docs-tab-content { display:none }
+            .docs-tab-content.active { display:block }
+          </style>
 
-            <pre><code class="language-http">POST https://infer0.com/v1/chat/completions
+          <div class="docs-tabs">
+            <div class="docs-tab-bar">
+              <button class="docs-tab active" data-tab="chat">Chat Completions</button>
+              <button class="docs-tab" data-tab="messages">Messages</button>
+              <button class="docs-tab" data-tab="responses">Responses</button>
+            </div>
+
+            <div class="docs-tab-content active" id="tab-chat">
+              <div class="endpoint">
+                <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
+                <p style="margin:0 0 12px 0">Chat Completions format (OpenAI SDK).</p>
+
+                <pre><code class="language-http">POST https://infer0.com/v1/chat/completions
 Authorization: Bearer &lt;access_token&gt;
 Content-Type: application/json
 
@@ -91,7 +108,7 @@ Content-Type: application/json
   ]
 }</code></pre>
 
-            <pre><code class="language-json">HTTP 200
+                <pre><code class="language-json">HTTP 200
 
 {
   "id": "chatcmpl-xxx",
@@ -115,8 +132,8 @@ Content-Type: application/json
   }
 }</code></pre>
 
-            <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the OpenAI SDK:</p>
-            <pre><code class="language-javascript">import OpenAI from "openai";
+                <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the OpenAI SDK:</p>
+                <pre><code class="language-javascript">import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "https://infer0.com/v1",
@@ -126,7 +143,123 @@ const client = new OpenAI({
 const chat = await client.chat.completions.create({
   messages: [{ role: "user", content: "Hello" }],
 });</code></pre>
+              </div>
+            </div>
+
+            <div class="docs-tab-content" id="tab-messages">
+              <div class="endpoint">
+                <h3><span class="method post">POST</span><span class="path">/v1/messages</span></h3>
+                <p style="margin:0 0 12px 0">Messages format (Anthropic SDK).</p>
+
+                <pre><code class="language-http">POST https://infer0.com/v1/messages
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
+
+{
+  "messages": [
+    { "role": "user", "content": "Hello" }
+  ]
+}</code></pre>
+
+                <pre><code class="language-json">HTTP 200
+
+{
+  "id": "msg_xxx",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    { "type": "text", "text": "Hello! How can I help you today?" }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 9
+  }
+}</code></pre>
+
+                <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the Anthropic SDK:</p>
+                <pre><code class="language-javascript">import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic({
+  baseURL: "https://infer0.com",
+  authToken: "&lt;access_token&gt;",
+});
+
+const msg = await client.messages.create({
+  messages: [{ role: "user", content: "Hello" }],
+});</code></pre>
+              </div>
+            </div>
+
+            <div class="docs-tab-content" id="tab-responses">
+              <div class="endpoint">
+                <h3><span class="method post">POST</span><span class="path">/v1/responses</span></h3>
+                <p style="margin:0 0 12px 0">Responses format (OpenAI SDK).</p>
+
+                <pre><code class="language-http">POST https://infer0.com/v1/responses
+Authorization: Bearer &lt;access_token&gt;
+Content-Type: application/json
+
+{
+  "input": "Hello"
+}</code></pre>
+
+                <pre><code class="language-json">HTTP 200
+
+{
+  "id": "resp_xxx",
+  "object": "response",
+  "output": [
+    {
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        { "type": "output_text", "text": "Hello! How can I help you today?" }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 9
+  }
+}</code></pre>
+
+                <p style="font-size:0.8125rem;color:var(--text-muted);margin:0 0 8px 0">or with the OpenAI SDK:</p>
+                <pre><code class="language-javascript">import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "https://infer0.com/v1",
+  apiKey: "&lt;access_token&gt;",
+});
+
+const resp = await client.responses.create({
+  input: "Hello",
+});</code></pre>
+              </div>
+            </div>
           </div>
+
+          <script>
+          (function(){
+            var tabs = document.querySelectorAll('.docs-tab');
+            for (var i = 0; i < tabs.length; i++) {
+              tabs[i].addEventListener('click', function() {
+                var bar = this.parentElement;
+                var container = bar.parentElement;
+                var target = this.getAttribute('data-tab');
+                var active = bar.querySelector('.active');
+                if (active) active.classList.remove('active');
+                this.classList.add('active');
+                var panels = container.querySelectorAll('.docs-tab-content');
+                for (var j = 0; j < panels.length; j++) {
+                  panels[j].classList.remove('active');
+                }
+                var panel = document.getElementById('tab-' + target);
+                if (panel) panel.classList.add('active');
+              });
+            }
+          })();
+          </script>
         </section>
 
         <section>
@@ -142,8 +275,8 @@ const chat = await client.chat.completions.create({
             </tr>
             <tr>
               <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>messages</code></td>
-              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/chat/completions</code></td>
-              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">Array of message objects with <code>role</code> and <code>content</code>.</td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem"><code>/v1/chat/completions</code>, <code>/v1/messages</code></td>
+              <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:0.875rem;color:var(--text-muted)">Array of message objects with <code>role</code> and <code>content</code>. <code>/v1/responses</code> uses <code>input</code> instead.</td>
             </tr>
             <tr>
               <td style="padding:12px 16px;border-bottom:1px solid var(--border);font-family:var(--font-mono,monospace);font-size:0.8125rem"><code>model</code></td>
