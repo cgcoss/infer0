@@ -77,6 +77,8 @@ grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&clie
 
           <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Send your request in Chat Completions, Messages, or Responses format — whichever matches your SDK. infer0 translates the response from the upstream provider back to the format you sent, regardless of which provider handles it.</p>
 
+          <p style="font-size:0.875rem;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px">Only <code>model</code>, <code>messages</code> (or <code>input</code> for Responses), and <code>stream</code> are accepted. All other parameters — <code>temperature</code>, <code>top_p</code>, <code>max_tokens</code>, <code>tools</code>, <code>response_format</code>, etc. — are silently ignored.</p>
+
           <style>
             .docs-tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px }
             .docs-tab { padding:10px 16px; cursor:pointer; font-size:0.8125rem; color:var(--text-muted); border:1px solid transparent; border-bottom:none; border-radius:var(--radius) var(--radius) 0 0; background:transparent; transition:all .15s; font-family:var(--font-body) }
