@@ -474,7 +474,7 @@ function renderHTML(clientId: string, infer0Api: string): string {
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0a0b;--bg-card:#141416;--bg-hover:#1c1c1f;--border:#27272a;--text:#fafafa;--text-muted:#a1a1aa;--accent:#d97706;--radius:8px}
+:root{--bg:#0b0b09;--bg-card:#151512;--bg-hover:#1d1d18;--border:#27272a;--text:#fafafa;--text-muted:#a1a1aa;--accent:#d97706;--radius:8px}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
 .container{max-width:720px;margin:0 auto;padding:48px 24px;width:100%}
 h1{font-size:1.75rem;font-weight:800;letter-spacing:-0.03em;margin-bottom:4px}
