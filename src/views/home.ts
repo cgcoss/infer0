@@ -41,7 +41,7 @@ export function HomeView({ user }: HomeViewProps) {
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">1</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">Developers register apps</h3>
-                <p style="margin:0;font-size:0.875rem">Create an OAuth app in Developer Settings to get a client ID and secret. Add the infer0 OAuth flow to your app. Use any supported API format — infer0 translates between providers automatically.</p>
+                <p style="margin:0;font-size:0.875rem">Create an OAuth app in Developer Settings to get a client ID and secret. Add the infer0 OAuth flow to your app. Use any supported API format. infer0 translates between providers automatically.</p>
               </div>
             </div>
             <div style="display:flex;gap:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
