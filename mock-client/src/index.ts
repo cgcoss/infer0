@@ -265,7 +265,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "for await (const chunk of stream) {",
         '  process.stdout.write(chunk.choices[0]?.delta?.content || "");',
         "}",
-      ].join("\\n"),
+      ].join("\n"),
       nonstream: [
         "const openai = new OpenAI({",
         '  baseURL: "https://infer0.com",',
