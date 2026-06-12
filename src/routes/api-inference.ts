@@ -2,7 +2,8 @@ import { Hono, type Context } from "hono";
 import type { Env, ProviderConfig } from "../types";
 import { verifyToken } from "../lib/auth";
 import { getUserProvider } from "./api-providers";
-import { extractRequestModel } from "../lib/normalize";
+import { normalizeRequest, type SourceEndpoint } from "../lib/normalize";
+import { translateResponse, translateStream, type Endpoint } from "../lib/translate";
 import { execute } from "../lib/gateway";
 
 export const inferenceRoutes = new Hono<{ Bindings: Env }>();
@@ -53,6 +54,13 @@ async function checkDailyLimit(
 
 const inferenceRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
+function pathToEndpoint(path: string): { source: SourceEndpoint; endpoint: Endpoint } {
+  if (path.endsWith("/v1/chat/completions")) return { source: "chat", endpoint: "chat" };
+  if (path.endsWith("/v1/messages")) return { source: "messages", endpoint: "messages" };
+  if (path.endsWith("/v1/responses")) return { source: "responses", endpoint: "responses" };
+  return { source: "chat", endpoint: "chat" };
+}
+
 async function handleInference(c: AppContext): Promise<Response> {
   const auth = await authenticateRequest(c);
   if ("status" in auth) return auth;
@@ -96,8 +104,9 @@ async function handleInference(c: AppContext): Promise<Response> {
     return c.json({ error: { message: "No provider configured", code: "no_provider" } }, 400);
   }
 
-  const body: Record<string, unknown> = await c.req.json();
-  const requestModel = extractRequestModel(body);
+  const rawBody: Record<string, unknown> = await c.req.json();
+  const { source, endpoint } = pathToEndpoint(c.req.path);
+  const normalized = normalizeRequest(rawBody, source);
 
   try {
     await c.env.DB.prepare(
@@ -142,7 +151,8 @@ async function handleInference(c: AppContext): Promise<Response> {
     }, 429);
   }
 
-  const response = await execute(c.env, provider, body, requestModel, auth.userId, provider.configId, auth.oauthAuthorizationId);
+  const useModel = normalized.model ?? provider.model;
+  const response = await execute(c.env, provider, normalized as unknown as Record<string, unknown>, useModel, auth.userId, provider.configId, auth.oauthAuthorizationId);
 
   if (response.status === 429) {
     return c.json({
@@ -153,7 +163,33 @@ async function handleInference(c: AppContext): Promise<Response> {
     }, 429);
   }
 
-  return response;
+  if (!response.ok) {
+    const errBody = await response.json().catch(() => null);
+    return c.json(
+      errBody ?? { error: { message: "Provider error", code: "provider_error" } },
+      { status: response.status },
+    );
+  }
+
+  const isStream = normalized.stream || (response.headers.get("content-type") ?? "").includes("event-stream");
+
+  if (isStream) {
+    const translated = translateStream(endpoint, response.body!, useModel);
+    return new Response(translated, {
+      status: 200,
+      headers: {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        "connection": "keep-alive",
+      },
+    });
+  }
+
+  const data = await response.json() as Record<string, unknown>;
+  const translated = translateResponse(endpoint, data, useModel);
+  return c.json(translated);
 }
 
 inferenceRoutes.post("/v1/chat/completions", handleInference);
+inferenceRoutes.post("/v1/messages", handleInference);
+inferenceRoutes.post("/v1/responses", handleInference);

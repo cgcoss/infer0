@@ -28,24 +28,12 @@ async function callProvider(
   developerBody: Record<string, unknown>,
   meta: GatewayMeta,
 ): Promise<Response> {
-  const { stream, model: _clientModel, ...rest } = developerBody;
-  const isStream = stream === true;
-
-  const body: Record<string, unknown> = {
+  const isStream = developerBody.stream === true;
+  const body = {
     model: `${provider.provider}/${provider.model}`,
     messages: developerBody.messages,
     stream: isStream,
   };
-
-  if (rest.system) {
-    (body.messages as any[]).unshift({ role: "system", content: rest.system });
-  }
-
-  for (const [key, value] of Object.entries(rest)) {
-    if (!["system", "max_output_tokens", "instructions", "max_tokens"].includes(key)) {
-      body[key] = value;
-    }
-  }
 
   return fetch(`${gatewayBase(env)}/compat/chat/completions`, {
     method: "POST",
