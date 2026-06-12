@@ -611,8 +611,12 @@ function updateSnippet() {
   const ep = currentEndpoint;
   const mode = sdkToggle.checked ? 'sdk' : 'raw';
   const stream = streamToggle.checked ? 'stream' : 'nonstream';
-  snippet.textContent = SNIPPETS[ep][mode][stream];
-  if (typeof hljs !== 'undefined') hljs.highlightElement(snippet);
+  const code = SNIPPETS[ep][mode][stream];
+  if (typeof hljs !== 'undefined') {
+    snippet.innerHTML = hljs.highlight(code, { language: 'javascript' }).value;
+  } else {
+    snippet.textContent = code;
+  }
 }
 
 function addMessage(role, content) {
