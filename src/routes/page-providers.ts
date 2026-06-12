@@ -198,18 +198,26 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
     anthropic: ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-sonnet-4-20250514", "claude-haiku-4-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5", "claude-opus-4-1", "claude-fable-5"],
     "google-ai-studio": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"],
   };
+  const LINKS = {
+    openai: "https://platform.openai.com/api-keys",
+    anthropic: "https://platform.claude.com/settings/keys",
+    "google-ai-studio": "https://aistudio.google.com/api-keys",
+  };
   function updateModels() {
     const provider = document.getElementById("provider-select").value;
     const input = document.getElementById("model-input");
     const list = document.getElementById("model-suggestions");
+    const link = document.getElementById("provider-link");
     list.innerHTML = "";
     if (!provider) {
       input.placeholder = "Select a provider first";
+      link.innerHTML = "";
       return;
     }
     input.placeholder = "Type or select a model";
     const models = MODELS[provider] || [];
     models.forEach(m => { const o = document.createElement("option"); o.value = m; list.appendChild(o); });
+    link.innerHTML = 'Get an API key: <a href="' + LINKS[provider] + '" target="_blank" style="color:var(--accent)">' + LINKS[provider] + "</a>";
   }
   </script>
 
@@ -222,6 +230,7 @@ providerPageRoutes.get("/providers", requireAuth, async (c) => {
       <option value="anthropic">Anthropic</option>
       <option value="google-ai-studio">Google AI</option>
     </select>
+    <p id="provider-link" style="font-size:0.8125rem;color:var(--text-muted);margin:0"></p>
     <input type="text" name="model" id="model-input" list="model-suggestions" placeholder="Select a provider first" style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
     <datalist id="model-suggestions"></datalist>
     <input type="password" name="api_key" placeholder="API key" required style="background:var(--bg-hover);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-size:0.875rem" />
