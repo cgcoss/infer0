@@ -460,6 +460,10 @@ export function Layout({ title, user, children }: LayoutProps) {
           <span style="display:block;margin-top:4px;font-size:0.75rem;text-transform:none;letter-spacing:normal">
             hi@infer0.com
           </span>
+          <span style="display:block;margin-top:8px;font-size:0.75rem;text-transform:none;letter-spacing:normal">
+            <a href="/privacy" style="color:var(--text-muted);text-decoration:none;margin-right:16px">Privacy</a>
+            <a href="/tos" style="color:var(--text-muted);text-decoration:none">Terms</a>
+          </span>
         </footer>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
         <script>hljs.highlightAll();</script>
