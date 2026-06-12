@@ -119,51 +119,127 @@ function simplifiedSSE(gen: AsyncGenerator<string>): Response {
   });
 }
 
+function extractContent(endpoint: string, data: any): string {
+  if (endpoint === "chat") return data.choices?.[0]?.message?.content || "";
+  if (endpoint === "messages") return data.content?.[0]?.text || "";
+  if (endpoint === "responses") return data.output?.[0]?.content?.[0]?.text || "";
+  return "";
+}
+
+function extractChunk(endpoint: string, data: any): string | null {
+  if (endpoint === "chat") return data.choices?.[0]?.delta?.content || null;
+  if (endpoint === "messages") {
+    if (data.type === "content_block_delta" && data.delta?.text) return data.delta.text;
+    return null;
+  }
+  if (endpoint === "responses") {
+    if (data.type === "response.output_text.delta") return data.delta;
+    return null;
+  }
+  return null;
+}
+
+async function* rawStreamContent(res: Response, endpoint: string): AsyncGenerator<string> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const parts = buf.split("\n\n");
+    buf = parts.pop() || "";
+    for (const part of parts) {
+      for (const line of part.split("\n")) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6).trim();
+        if (payload === "[DONE]") continue;
+        try {
+          const chunk = extractChunk(endpoint, JSON.parse(payload));
+          if (chunk) yield chunk;
+        } catch {}
+      }
+    }
+  }
+}
+
 async function handleInfer(request: Request, env: Env): Promise<Response> {
   try {
-    const { accessToken, messages, endpoint, stream } = await request.json<{
+    const { accessToken, messages, endpoint, stream, mode } = await request.json<{
       accessToken: string;
       messages: Array<{ role: string; content: string }>;
       endpoint: string;
       stream: boolean;
+      mode: string;
     }>();
 
     if (!accessToken || !messages?.length) {
       return Response.json({ error: { message: "Missing accessToken or messages" } }, { status: 400 });
     }
 
+    const api = env.INFER0_API.replace(/\/$/, "");
+
+    if (mode === "raw") {
+      const body: Record<string, unknown> = {};
+      if (endpoint === "chat" || endpoint === "messages") {
+        body.model = endpoint === "chat" ? "gpt-4o-mini" : "claude-sonnet-4-6";
+        body.messages = messages;
+      } else {
+        body.model = "gpt-4o-mini";
+        body.input = messages.map((m: { content: string }) => m.content).join("\n");
+      }
+      if (stream) body.stream = true;
+
+      const rawPath = endpoint === "chat" ? "chat/completions" : endpoint;
+      const res = await fetch(`${api}/v1/${rawPath}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        return Response.json({ error: { message: `HTTP ${res.status}: ${err.slice(0, 200)}` } }, { status: 500 });
+      }
+
+      if (stream) return simplifiedSSE(rawStreamContent(res, endpoint));
+
+      const data = await res.json() as any;
+      return simplifiedSSE(async function* () { yield extractContent(endpoint, data); }());
+    }
+
     if (endpoint === "chat") {
-      const openai = new OpenAI({ baseURL: env.INFER0_API, apiKey: accessToken });
+      const openai = new OpenAI({ baseURL: api + "/v1", apiKey: accessToken });
       if (stream) {
         const sdkStream = await openai.chat.completions.create({ model: "gpt-4o-mini", messages, stream: true });
         return simplifiedSSE(chatContent(sdkStream as any));
       }
       const resp = await openai.chat.completions.create({ model: "gpt-4o-mini", messages }) as any;
-      const text = resp.choices?.[0]?.message?.content || "";
-      return simplifiedSSE(async function* () { yield text; }());
+      return simplifiedSSE(async function* () { yield resp.choices?.[0]?.message?.content || ""; }());
     }
 
     if (endpoint === "messages") {
-      const anthropic = new Anthropic({ baseURL: env.INFER0_API, apiKey: accessToken });
+      const anthropic = new Anthropic({ baseURL: api, authToken: accessToken });
       if (stream) {
         const sdkStream = await anthropic.messages.create({ model: "claude-sonnet-4-6", messages, stream: true } as any);
         return simplifiedSSE(messagesContent(sdkStream));
       }
       const resp = await anthropic.messages.create({ model: "claude-sonnet-4-6", messages }) as any;
-      const text = resp.content?.[0]?.text || "";
-      return simplifiedSSE(async function* () { yield text; }());
+      return simplifiedSSE(async function* () { yield resp.content?.[0]?.text || ""; }());
     }
 
     if (endpoint === "responses") {
-      const openai = new OpenAI({ baseURL: env.INFER0_API, apiKey: accessToken });
+      const openai = new OpenAI({ baseURL: api + "/v1", apiKey: accessToken });
       const input = messages.map((m) => m.content).join("\n");
       if (stream) {
         const sdkStream = await openai.responses.create({ model: "gpt-4o-mini", input, stream: true } as any);
         return simplifiedSSE(responsesContent(sdkStream as any));
       }
       const resp = await openai.responses.create({ model: "gpt-4o-mini", input }) as any;
-      const text = resp.output?.[0]?.content?.[0]?.text || "";
-      return simplifiedSSE(async function* () { yield text; }());
+      return simplifiedSSE(async function* () { yield resp.output?.[0]?.content?.[0]?.text || ""; }());
     }
 
     return Response.json({ error: { message: "Unknown endpoint: " + endpoint } }, { status: 400 });
@@ -172,51 +248,218 @@ async function handleInfer(request: Request, env: Env): Promise<Response> {
   }
 }
 
-const SNIPPETS: Record<string, string> = {
-  chat: `const openai = new OpenAI({
-  baseURL: "https://infer0.com",
-  apiKey: accessToken,
-});
-const stream = await openai.chat.completions.create({
-  model: "gpt-4o",
-  messages: [
-    { role: "user", content: "Hello" },
-  ],
-  stream: true,
-});
-for await (const chunk of stream) {
-  process.stdout.write(chunk.choices[0]?.delta?.content || "");
-}`,
-  messages: `const anthropic = new Anthropic({
-  baseURL: "https://infer0.com",
-  apiKey: accessToken,
-});
-const stream = await anthropic.messages.create({
-  model: "claude-sonnet-4-6",
-  messages: [
-    { role: "user", content: "Hello" },
-  ],
-  stream: true,
-});
-for await (const event of stream) {
-  if (event.type === "content_block_delta") {
-    process.stdout.write(event.delta.text);
-  }
-}`,
-  responses: `const openai = new OpenAI({
-  baseURL: "https://infer0.com",
-  apiKey: accessToken,
-});
-const stream = await openai.responses.create({
-  model: "gpt-4o",
-  input: "Hello",
-  stream: true,
-});
-for await (const event of stream) {
-  if (event.type === "response.output_text.delta") {
-    process.stdout.write(event.delta);
-  }
-}`,
+const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
+  chat: {
+    sdk: {
+      stream: [
+        "const openai = new OpenAI({",
+        '  baseURL: "https://infer0.com",',
+        "  apiKey: accessToken,",
+        "});",
+        "const stream = await openai.chat.completions.create({",
+        '  model: "gpt-4o",',
+        '  messages: [{ role: "user", content: "Hello" }],',
+        "  stream: true,",
+        "});",
+        "for await (const chunk of stream) {",
+        '  process.stdout.write(chunk.choices[0]?.delta?.content || "");',
+        "}",
+      ].join("\n"),
+      nonstream: [
+        "const openai = new OpenAI({",
+        '  baseURL: "https://infer0.com",',
+        "  apiKey: accessToken,",
+        "});",
+        "const resp = await openai.chat.completions.create({",
+        '  model: "gpt-4o",',
+        '  messages: [{ role: "user", content: "Hello" }],',
+        "});",
+        "console.log(resp.choices[0].message.content);",
+      ].join("\n"),
+    },
+    raw: {
+      stream: [
+        'const res = await fetch("https://infer0.com/v1/chat/completions", {',
+        '  method: "POST",',
+        '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
+        '  body: JSON.stringify({',
+        '    model: "gpt-4o",',
+        '    messages: [{ role: "user", content: "Hello" }],',
+        "    stream: true,",
+        "  }),",
+        "});",
+        "const reader = res.body.getReader();",
+        "const decoder = new TextDecoder();",
+        'let buf = "";',
+        "while (true) {",
+        "  const { done, value } = await reader.read();",
+        "  if (done) break;",
+        '  buf += decoder.decode(value, { stream: true });',
+        '  for (const line of buf.split("\\n")) {',
+        '    if (!line.startsWith("data: ")) continue;',
+        '    const data = line.slice(6);',
+        '    if (data === "[DONE]") continue;',
+        "    const json = JSON.parse(data);",
+        '    process.stdout.write(json.choices[0]?.delta?.content || "");',
+        "  }",
+        "}",
+      ].join("\n"),
+      nonstream: [
+        'const res = await fetch("https://infer0.com/v1/chat/completions", {',
+        '  method: "POST",',
+        '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
+        '  body: JSON.stringify({',
+        '    model: "gpt-4o",',
+        '    messages: [{ role: "user", content: "Hello" }],',
+        "  }),",
+        "});",
+        "const data = await res.json();",
+        "console.log(data.choices[0].message.content);",
+      ].join("\n"),
+    },
+  },
+  responses: {
+    sdk: {
+      stream: [
+        "const openai = new OpenAI({",
+        '  baseURL: "https://infer0.com",',
+        "  apiKey: accessToken,",
+        "});",
+        "const stream = await openai.responses.create({",
+        '  model: "gpt-4o",',
+        '  input: "Hello",',
+        "  stream: true,",
+        "});",
+        "for await (const event of stream) {",
+        '  if (event.type === "response.output_text.delta") {',
+        "    process.stdout.write(event.delta);",
+        "  }",
+        "}",
+      ].join("\n"),
+      nonstream: [
+        "const openai = new OpenAI({",
+        '  baseURL: "https://infer0.com",',
+        "  apiKey: accessToken,",
+        "});",
+        "const resp = await openai.responses.create({",
+        '  model: "gpt-4o",',
+        '  input: "Hello",',
+        "});",
+        "console.log(resp.output[0].content[0].text);",
+      ].join("\n"),
+    },
+    raw: {
+      stream: [
+        'const res = await fetch("https://infer0.com/v1/responses", {',
+        '  method: "POST",',
+        '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
+        '  body: JSON.stringify({',
+        '    model: "gpt-4o",',
+        '    input: "Hello",',
+        "    stream: true,",
+        "  }),",
+        "});",
+        "const reader = res.body.getReader();",
+        "const decoder = new TextDecoder();",
+        'let buf = "";',
+        "while (true) {",
+        "  const { done, value } = await reader.read();",
+        "  if (done) break;",
+        '  buf += decoder.decode(value, { stream: true });',
+        '  for (const line of buf.split("\\n")) {',
+        '    if (!line.startsWith("data: ")) continue;',
+        "    const json = JSON.parse(line.slice(6));",
+        '    if (json.type === "response.output_text.delta") {',
+        "      process.stdout.write(json.delta);",
+        "    }",
+        "  }",
+        "}",
+      ].join("\n"),
+      nonstream: [
+        'const res = await fetch("https://infer0.com/v1/responses", {',
+        '  method: "POST",',
+        '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
+        '  body: JSON.stringify({',
+        '    model: "gpt-4o",',
+        '    input: "Hello",',
+        "  }),",
+        "});",
+        "const data = await res.json();",
+        "console.log(data.output[0].content[0].text);",
+      ].join("\n"),
+    },
+  },
+  messages: {
+    sdk: {
+      stream: [
+        "const anthropic = new Anthropic({",
+        '  baseURL: "https://infer0.com",',
+        "  authToken: accessToken,",
+        "});",
+        "const stream = await anthropic.messages.create({",
+        '  model: "claude-sonnet-4-6",',
+        '  messages: [{ role: "user", content: "Hello" }],',
+        "  stream: true,",
+        "});",
+        "for await (const event of stream) {",
+        '  if (event.type === "content_block_delta") {',
+        "    process.stdout.write(event.delta.text);",
+        "  }",
+        "}",
+      ].join("\n"),
+      nonstream: [
+        "const anthropic = new Anthropic({",
+        '  baseURL: "https://infer0.com",',
+        "  authToken: accessToken,",
+        "});",
+        "const resp = await anthropic.messages.create({",
+        '  model: "claude-sonnet-4-6",',
+        '  messages: [{ role: "user", content: "Hello" }],',
+        "});",
+        "console.log(resp.content[0].text);",
+      ].join("\n"),
+    },
+    raw: {
+      stream: [
+        'const res = await fetch("https://infer0.com/v1/messages", {',
+        '  method: "POST",',
+        '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
+        '  body: JSON.stringify({',
+        '    model: "claude-sonnet-4-6",',
+        '    messages: [{ role: "user", content: "Hello" }],',
+        "    stream: true,",
+        "  }),",
+        "});",
+        "const reader = res.body.getReader();",
+        "const decoder = new TextDecoder();",
+        'let buf = "";',
+        "while (true) {",
+        "  const { done, value } = await reader.read();",
+        "  if (done) break;",
+        '  buf += decoder.decode(value, { stream: true });',
+        '  for (const line of buf.split("\\n")) {',
+        '    if (!line.startsWith("data: ")) continue;',
+        "    const json = JSON.parse(line.slice(6));",
+        '    if (json.type === "content_block_delta") {',
+        "      process.stdout.write(json.delta.text);",
+        "    }",
+        "  }",
+        "}",
+      ].join("\n"),
+      nonstream: [
+        'const res = await fetch("https://infer0.com/v1/messages", {',
+        '  method: "POST",',
+        '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
+        '  body: JSON.stringify({',
+        '    model: "claude-sonnet-4-6",',
+        '    messages: [{ role: "user", content: "Hello" }],',
+        "  }),",
+        "});",
+        "const data = await res.json();",
+        "console.log(data.content[0].text);",
+      ].join("\n"),
+    },
+  },
 };
 
 function renderHTML(clientId: string, infer0Api: string): string {
@@ -290,14 +533,18 @@ pre code.hljs{background:transparent!important;padding:0!important}
 <div id="app" style="display:none">
   <div class="tabs">
     <div class="tab active" data-endpoint="chat">Chat Completions</div>
-    <div class="tab" data-endpoint="messages">Messages</div>
     <div class="tab" data-endpoint="responses">Responses</div>
+    <div class="tab" data-endpoint="messages">Messages</div>
   </div>
 
   <div class="controls">
     <label class="toggle-label">
       <input type="checkbox" id="stream-toggle" checked />
-      Stream response
+      Stream
+    </label>
+    <label class="toggle-label">
+      <input type="checkbox" id="sdk-toggle" checked />
+      Use SDK
     </label>
   </div>
 
@@ -326,6 +573,7 @@ const chat = document.getElementById('chat');
 const signInBtn = document.getElementById('sign-in-btn');
 const snippet = document.getElementById('snippet');
 const streamToggle = document.getElementById('stream-toggle');
+const sdkToggle = document.getElementById('sdk-toggle');
 const tabs = document.querySelectorAll('.tab');
 const messages = [];
 let currentEndpoint = 'chat';
@@ -341,9 +589,10 @@ if (accessToken) {
 
 signInBtn.addEventListener('click', () => {
   const clientId = document.querySelector('meta[name="client-id"]')?.getAttribute('content');
+  const infer0Api = document.querySelector('meta[name="infer0-api"]')?.getAttribute('content') || 'https://infer0.com';
   if (!clientId) { alert('Client ID not configured'); return; }
   const redirectUri = location.origin + '/oauth/callback';
-  window.location.href = 'https://infer0.com/oauth/authorize?client_id=' + encodeURIComponent(clientId) + '&redirect_uri=' + encodeURIComponent(redirectUri) + '&response_type=code';
+  window.location.href = infer0Api + '/oauth/authorize?client_id=' + encodeURIComponent(clientId) + '&redirect_uri=' + encodeURIComponent(redirectUri) + '&response_type=code';
 });
 
 tabs.forEach(tab => {
@@ -355,8 +604,14 @@ tabs.forEach(tab => {
   });
 });
 
+streamToggle.addEventListener('change', updateSnippet);
+sdkToggle.addEventListener('change', updateSnippet);
+
 function updateSnippet() {
-  snippet.textContent = SNIPPETS[currentEndpoint];
+  const ep = currentEndpoint;
+  const mode = sdkToggle.checked ? 'sdk' : 'raw';
+  const stream = streamToggle.checked ? 'stream' : 'nonstream';
+  snippet.textContent = SNIPPETS[ep][mode][stream];
   if (typeof hljs !== 'undefined') hljs.highlightElement(snippet);
 }
 
@@ -403,6 +658,7 @@ sendBtn.addEventListener('click', async () => {
         messages,
         endpoint: currentEndpoint,
         stream: streamToggle.checked,
+        mode: sdkToggle.checked ? 'sdk' : 'raw',
       }),
     });
 
