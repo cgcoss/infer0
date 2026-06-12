@@ -257,6 +257,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "  apiKey: accessToken,",
         "});",
         "const stream = await openai.chat.completions.create({",
+        '  // ignored — determined per-user by their provider config',
         '  model: "gpt-4o",',
         '  messages: [{ role: "user", content: "Hello" }],',
         "  stream: true,",
@@ -264,13 +265,14 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "for await (const chunk of stream) {",
         '  process.stdout.write(chunk.choices[0]?.delta?.content || "");',
         "}",
-      ].join("\n"),
+      ].join("\\n"),
       nonstream: [
         "const openai = new OpenAI({",
         '  baseURL: "https://infer0.com",',
         "  apiKey: accessToken,",
         "});",
         "const resp = await openai.chat.completions.create({",
+        '  // ignored — determined per-user by their provider config',
         '  model: "gpt-4o",',
         '  messages: [{ role: "user", content: "Hello" }],',
         "});",
@@ -283,6 +285,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         '  method: "POST",',
         '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
         '  body: JSON.stringify({',
+        '    // ignored — determined per-user by their provider config',
         '    model: "gpt-4o",',
         '    messages: [{ role: "user", content: "Hello" }],',
         "    stream: true,",
@@ -309,6 +312,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         '  method: "POST",',
         '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
         '  body: JSON.stringify({',
+        '    // ignored — determined per-user by their provider config',
         '    model: "gpt-4o",',
         '    messages: [{ role: "user", content: "Hello" }],',
         "  }),",
@@ -326,6 +330,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "  apiKey: accessToken,",
         "});",
         "const stream = await openai.responses.create({",
+        '  // ignored — determined per-user by their provider config',
         '  model: "gpt-4o",',
         '  input: "Hello",',
         "  stream: true,",
@@ -342,6 +347,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "  apiKey: accessToken,",
         "});",
         "const resp = await openai.responses.create({",
+        '  // ignored — determined per-user by their provider config',
         '  model: "gpt-4o",',
         '  input: "Hello",',
         "});",
@@ -354,6 +360,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         '  method: "POST",',
         '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
         '  body: JSON.stringify({',
+        '    // ignored — determined per-user by their provider config',
         '    model: "gpt-4o",',
         '    input: "Hello",',
         "    stream: true,",
@@ -380,6 +387,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         '  method: "POST",',
         '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
         '  body: JSON.stringify({',
+        '    // ignored — determined per-user by their provider config',
         '    model: "gpt-4o",',
         '    input: "Hello",',
         "  }),",
@@ -397,6 +405,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "  authToken: accessToken,",
         "});",
         "const stream = await anthropic.messages.create({",
+        '  // ignored — determined per-user by their provider config',
         '  model: "claude-sonnet-4-6",',
         '  messages: [{ role: "user", content: "Hello" }],',
         "  stream: true,",
@@ -413,6 +422,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         "  authToken: accessToken,",
         "});",
         "const resp = await anthropic.messages.create({",
+        '  // ignored — determined per-user by their provider config',
         '  model: "claude-sonnet-4-6",',
         '  messages: [{ role: "user", content: "Hello" }],',
         "});",
@@ -425,6 +435,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         '  method: "POST",',
         '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
         '  body: JSON.stringify({',
+        '    // ignored — determined per-user by their provider config',
         '    model: "claude-sonnet-4-6",',
         '    messages: [{ role: "user", content: "Hello" }],',
         "    stream: true,",
@@ -451,6 +462,7 @@ const SNIPPETS: Record<string, Record<string, Record<string, string>>> = {
         '  method: "POST",',
         '  headers: { "Content-Type": "application/json", Authorization: "Bearer " + accessToken },',
         '  body: JSON.stringify({',
+        '    // ignored — determined per-user by their provider config',
         '    model: "claude-sonnet-4-6",',
         '    messages: [{ role: "user", content: "Hello" }],',
         "  }),",
@@ -470,12 +482,14 @@ function renderHTML(clientId: string, infer0Api: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="client-id" content="${clientId}" />
 <meta name="infer0-api" content="${infer0Api}" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230b0b09' stroke='%232a2a22' stroke-width='1'/><text x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23d97706'>0</text></svg>" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230b0b09' stroke='%232a2a22' stroke-width='1'/><text x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23d97706'>0</text></svg>" />
 <title>infer0 Test Client</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0b0b09;--bg-card:#151512;--bg-hover:#1d1d18;--border:#27272a;--text:#fafafa;--text-muted:#a1a1aa;--accent:#d97706;--radius:8px}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;display:flex;flex-direction:column;background-image:linear-gradient(rgba(217,119,6,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(217,119,6,0.03) 1px,transparent 1px);background-size:64px 64px}
 .container{max-width:720px;margin:0 auto;padding:48px 24px;width:100%}
 h1{font-size:1.75rem;font-weight:800;letter-spacing:-0.03em;margin-bottom:4px}
 h1 span{color:var(--accent)}
