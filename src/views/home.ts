@@ -28,8 +28,8 @@ export function HomeView({ user }: HomeViewProps) {
             <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">03</span> Per-app spend limits. Pause or revoke anytime.</div>
           </div>
           <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-            <a href="/login" class="btn-primary">Start building</a>
-            <a href="https://test-client.infer0.com" class="btn-secondary" target="_blank">See it live</a>
+            <a href="https://test-client.infer0.com" class="btn-primary" target="_blank">See it live</a>
+            <a href="/login" class="btn-secondary">Start building</a>
             <a href="/docs" class="btn-secondary">Read the docs</a>
           </div>
         </section>
