@@ -20,6 +20,11 @@ const PROVIDER_LABELS = {
 
 let passed = 0, failed = 0;
 
+function assert(condition, label, detail) {
+  if (condition) { passed++; console.log(`  PASS  ${label}`); }
+  else { failed++; console.log(`  FAIL  ${label}${detail ? `\n        ${detail}` : ""}`); }
+}
+
 async function testModel(provider, model) {
   const apiKey = PROVIDER_KEYS[provider];
   const label = `${PROVIDER_LABELS[provider] || provider}: ${model}`;
@@ -93,8 +98,70 @@ async function main() {
     models[cleanProvider] = list.split(",").map(m => m.trim().replace(/"/g, "")).filter(Boolean);
   }
 
+  // Also test streaming and new endpoints
+  async function testEndpoint(label, path, body, checkFn) {
+    const apiKey = PROVIDER_KEYS.openai;
+    const setupRes = await fetch(`${BASE}/__test/setup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "openai", model: "gpt-4o-mini", apiKey }),
+    });
+    if (!setupRes.ok) { console.log(`  SKIP  ${label} (setup failed)`); failed++; return; }
+    const { token } = await setupRes.json();
+    const res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    await checkFn(res, label);
+  }
+
+  console.log(`\n━━━ Streaming & multi-endpoint (OpenAI: gpt-4o-mini) ━━━`);
+
+  await testEndpoint("/v1/chat/completions streaming", "/v1/chat/completions",
+    { messages: [{ role: "user", content: "Say OK" }], stream: true, max_tokens: 10 },
+    (res, label) => {
+      const ct = res.headers.get("content-type") || "";
+      assert(res.status === 200, `${label} → 200`, `got ${res.status}`);
+      assert(ct.includes("event-stream"), `${label} → SSE`, `got ${ct}`);
+    });
+
+  await testEndpoint("/v1/messages streaming", "/v1/messages",
+    { messages: [{ role: "user", content: "Say OK" }], stream: true, max_tokens: 10 },
+    (res, label) => {
+      const ct = res.headers.get("content-type") || "";
+      assert(res.status === 200, `${label} → 200`, `got ${res.status}`);
+      assert(ct.includes("event-stream"), `${label} → SSE`, `got ${ct}`);
+    });
+
+  await testEndpoint("/v1/responses streaming", "/v1/responses",
+    { input: "Say OK", stream: true, max_tokens: 10 },
+    (res, label) => {
+      const ct = res.headers.get("content-type") || "";
+      assert(res.status === 200, `${label} → 200`, `got ${res.status}`);
+      assert(ct.includes("event-stream"), `${label} → SSE`, `got ${ct}`);
+    });
+
+  await testEndpoint("/v1/messages (non-streaming)", "/v1/messages",
+    { messages: [{ role: "user", content: "Say OK" }], max_tokens: 10 },
+    async (res, label) => {
+      const body = await res.json();
+      assert(res.status === 200, `${label} → 200`, `got ${res.status}`);
+      assert(body.type === "message", `${label} → message type`, `got ${body.type}`);
+      assert(body.content?.[0]?.text, `${label} → has text`, `no text`);
+      assert(body.stop_reason === "end_turn", `${label} → end_turn`, `got ${body.stop_reason}`);
+    });
+
+  await testEndpoint("/v1/responses (non-streaming)", "/v1/responses",
+    { input: "Say OK", max_tokens: 10 },
+    async (res, label) => {
+      const body = await res.json();
+      assert(res.status === 200, `${label} → 200`, `got ${res.status}`);
+      assert(body.object === "response", `${label} → response object`, `got ${body.object}`);
+      assert(body.output?.[0]?.content?.[0]?.text, `${label} → has text`, `no text`);
+    });
+
   const total = Object.values(models).flat().length;
-  console.log(`\nModel validation — ${total} models to test\n`);
 
   for (const [provider, modelList] of Object.entries(models)) {
     console.log(`\n━━━ ${PROVIDER_LABELS[provider] || provider} (${modelList.length} models) ━━━`);

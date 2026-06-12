@@ -67,6 +67,123 @@ export function translateResponse(
   return chatResponse;
 }
 
+function encode(json: unknown): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(json)}\n\n`);
+}
+function encodeEvent(event: string, json: unknown): Uint8Array {
+  return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(json)}\n\n`);
+}
+
+function translateSseLine(
+  line: string,
+  state: {
+    id: string; model: string; acc: string; started: boolean; finished: boolean;
+  },
+  endpoint: Endpoint,
+  useModel: string | null,
+): Uint8Array[] {
+  if (!line.startsWith("data: ")) return [];
+  const raw = line.slice(6).trim();
+  if (raw === "[DONE]") { state.finished = true; return []; }
+
+  let chunk: any;
+  try { chunk = JSON.parse(raw); } catch { return []; }
+
+  if (chunk.id) state.id = chunk.id;
+  if (chunk.model) state.model = chunk.model;
+  const delta = chunk.choices?.[0]?.delta;
+  const result: Uint8Array[] = [];
+
+  if (delta?.role && !state.started) {
+    state.started = true;
+    if (endpoint === "messages") {
+      result.push(encodeEvent("message_start", {
+        type: "message_start",
+        message: {
+          id: newId("msg_"), type: "message", role: "assistant", content: [],
+          model: useModel || state.model, stop_reason: null, stop_sequence: null,
+          usage: { input_tokens: 0, output_tokens: 0 },
+        },
+      }));
+      result.push(encodeEvent("content_block_start", {
+        type: "content_block_start", index: 0,
+        content_block: { type: "text", text: "" },
+      }));
+    } else if (endpoint === "responses") {
+      result.push(encodeEvent("response.created", {
+        type: "response.created",
+        response: { id: newId("resp_"), object: "response", model: useModel || state.model, output: [], usage: null },
+      }));
+      result.push(encodeEvent("response.in_progress", {
+        type: "response.in_progress",
+        response: { id: newId("resp_"), object: "response", model: useModel || state.model, status: "in_progress" },
+      }));
+      result.push(encodeEvent("response.output_item.added", {
+        type: "response.output_item.added",
+        item: { id: newId("msg_"), type: "message", role: "assistant", content: [] },
+      }));
+      result.push(encodeEvent("response.content_part.added", {
+        type: "response.content_part.added", index: 0, part: { type: "text" },
+      }));
+    }
+  }
+
+  if (delta?.content) {
+    state.acc += delta.content;
+    if (endpoint === "messages") {
+      result.push(encodeEvent("content_block_delta", {
+        type: "content_block_delta", index: 0,
+        delta: { type: "text_delta", text: delta.content },
+      }));
+    } else if (endpoint === "responses") {
+      result.push(encodeEvent("response.output_text.delta", {
+        type: "response.output_text.delta", delta: delta.content,
+        item_id: "msg_" + state.id, output_index: 0, content_index: 0,
+      }));
+    }
+  }
+
+  const finish = chunk.choices?.[0]?.finish_reason;
+  if (finish && state.started) {
+    state.finished = true;
+    const u = chunk.usage || {};
+    if (endpoint === "messages") {
+      result.push(encodeEvent("content_block_stop", { type: "content_block_stop", index: 0 }));
+      result.push(encodeEvent("message_delta", {
+        type: "message_delta",
+        delta: { stop_reason: finishReasonMap(finish, "messages"), stop_sequence: null },
+        usage: { output_tokens: u.completion_tokens || 0 },
+      }));
+      result.push(encodeEvent("message_stop", { type: "message_stop" }));
+    } else if (endpoint === "responses") {
+      const itemId = "msg_" + state.id;
+      result.push(encodeEvent("response.output_text.done", {
+        type: "response.output_text.done", text: state.acc,
+        item_id: itemId, output_index: 0, content_index: 0,
+      }));
+      result.push(encodeEvent("response.output_item.done", {
+        type: "response.output_item.done",
+        item: { id: itemId, type: "message", role: "assistant", content: [{ type: "text", text: state.acc }] },
+      }));
+      result.push(encodeEvent("response.done", {
+        type: "response.done",
+        response: {
+          id: newId("resp_"), object: "response", model: useModel || state.model,
+          output: [{ id: itemId, type: "message", role: "assistant", content: [{ type: "output_text", text: state.acc }] }],
+          usage: {
+            input_tokens: u.prompt_tokens || 0,
+            output_tokens: u.completion_tokens || 0,
+            total_tokens: u.total_tokens || 0,
+          },
+        },
+      }));
+    }
+    result.push(new TextEncoder().encode("data: [DONE]\n\n"));
+  }
+
+  return result;
+}
+
 export function translateStream(
   endpoint: Endpoint,
   gwStream: ReadableStream,
@@ -75,156 +192,43 @@ export function translateStream(
   if (endpoint === "chat") return gwStream;
 
   const decoder = new TextDecoder();
+  const state = { id: "", model: "", acc: "", started: false, finished: false };
   let buf = "";
-  let id = "";
-  let model = "";
-  let acc = "";
-  let started = false;
-  let finished = false;
-
-  function encode(json: unknown): Uint8Array {
-    return new TextEncoder().encode(`data: ${JSON.stringify(json)}\n\n`);
-  }
-  function encodeEvent(event: string, json: unknown): Uint8Array {
-    return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(json)}\n\n`);
-  }
 
   const reader = gwStream.getReader();
 
   return new ReadableStream({
-    async pull(controller) {
-      while (true) {
-        if (finished) { controller.close(); return; }
+    start(controller) {
+      async function pump() {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-        const { done, value } = await reader.read();
-        if (done) {
-          if (!finished) {
-            // Stream ended without a finish chunk — emit terminal
-            if (endpoint === "messages") {
-              controller.enqueue(encodeEvent("message_stop", { type: "message_stop" }));
-            } else if (endpoint === "responses") {
-              controller.enqueue(encodeEvent("response.done", {
-                type: "response.done",
-                response: {
-                  id: "resp_" + id, object: "response", model: useModel || model,
-                  output: [{ id: "msg_" + id, type: "message", role: "assistant", content: [{ type: "output_text", text: acc }] }],
-                  usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
-                },
-              }));
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop() || "";
+
+            for (const line of lines) {
+              for (const bytes of translateSseLine(line, state, endpoint, useModel)) {
+                controller.enqueue(bytes);
+              }
+              if (state.finished) break;
             }
+            if (state.finished) break;
           }
-          controller.close();
+        } catch (e) {
+          controller.error(e);
+          reader.cancel();
           return;
         }
 
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") { finished = true; continue; }
-
-          let chunk: any;
-          try { chunk = JSON.parse(raw); } catch { continue; }
-
-          if (chunk.id) id = chunk.id;
-          if (chunk.model) model = chunk.model;
-          const delta = chunk.choices?.[0]?.delta;
-
-          if (delta?.role && !started) {
-            started = true;
-            if (endpoint === "messages") {
-              controller.enqueue(encodeEvent("message_start", {
-                type: "message_start",
-                message: {
-                  id: newId("msg_"), type: "message", role: "assistant", content: [],
-                  model: useModel || model, stop_reason: null, stop_sequence: null,
-                  usage: { input_tokens: 0, output_tokens: 0 },
-                },
-              }));
-              controller.enqueue(encodeEvent("content_block_start", {
-                type: "content_block_start", index: 0,
-                content_block: { type: "text", text: "" },
-              }));
-            } else if (endpoint === "responses") {
-              controller.enqueue(encodeEvent("response.created", {
-                type: "response.created",
-                response: { id: newId("resp_"), object: "response", model: useModel || model, output: [], usage: null },
-              }));
-              controller.enqueue(encodeEvent("response.in_progress", {
-                type: "response.in_progress",
-                response: { id: newId("resp_"), object: "response", model: useModel || model, status: "in_progress" },
-              }));
-              controller.enqueue(encodeEvent("response.output_item.added", {
-                type: "response.output_item.added",
-                item: { id: newId("msg_"), type: "message", role: "assistant", content: [] },
-              }));
-              controller.enqueue(encodeEvent("response.content_part.added", {
-                type: "response.content_part.added", index: 0, part: { type: "text" },
-              }));
-            }
-          }
-
-          if (delta?.content) {
-            acc += delta.content;
-            if (endpoint === "messages") {
-              controller.enqueue(encodeEvent("content_block_delta", {
-                type: "content_block_delta", index: 0,
-                delta: { type: "text_delta", text: delta.content },
-              }));
-            } else if (endpoint === "responses") {
-              controller.enqueue(encodeEvent("response.output_text.delta", {
-                type: "response.output_text.delta", delta: delta.content,
-                item_id: "msg_" + id, output_index: 0, content_index: 0,
-              }));
-            }
-          }
-
-          const finish = chunk.choices?.[0]?.finish_reason;
-          if (finish && started) {
-            finished = true;
-            const u = chunk.usage || {};
-            if (endpoint === "messages") {
-              controller.enqueue(encodeEvent("content_block_stop", { type: "content_block_stop", index: 0 }));
-              controller.enqueue(encodeEvent("message_delta", {
-                type: "message_delta",
-                delta: { stop_reason: finishReasonMap(finish, "messages"), stop_sequence: null },
-                usage: { output_tokens: u.completion_tokens || 0 },
-              }));
-              controller.enqueue(encodeEvent("message_stop", { type: "message_stop" }));
-            } else if (endpoint === "responses") {
-              const itemId = "msg_" + id;
-              controller.enqueue(encodeEvent("response.output_text.done", {
-                type: "response.output_text.done", text: acc,
-                item_id: itemId, output_index: 0, content_index: 0,
-              }));
-              controller.enqueue(encodeEvent("response.output_item.done", {
-                type: "response.output_item.done",
-                item: { id: itemId, type: "message", role: "assistant", content: [{ type: "text", text: acc }] },
-              }));
-              controller.enqueue(encodeEvent("response.done", {
-                type: "response.done",
-                response: {
-                  id: newId("resp_"), object: "response", model: useModel || model,
-                  output: [{ id: itemId, type: "message", role: "assistant", content: [{ type: "output_text", text: acc }] }],
-                  usage: {
-                    input_tokens: u.prompt_tokens || 0,
-                    output_tokens: u.completion_tokens || 0,
-                    total_tokens: u.total_tokens || 0,
-                  },
-                },
-              }));
-            }
-            controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
-          }
+        if (!state.started && endpoint === "messages") {
+          controller.enqueue(encodeEvent("message_stop", { type: "message_stop" }));
         }
-
-        // Yield control back to signal we've processed some data
-        // The stream continues in subsequent pull() calls
-        return;
+        controller.close();
       }
+      pump();
     },
     cancel() {
       reader.cancel();
