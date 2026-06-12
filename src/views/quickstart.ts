@@ -12,7 +12,7 @@ export function QuickstartView({ user }: QuickstartViewProps) {
     children: html`
       <div class="container">
         <h1 style="font-size:2.5rem;margin-bottom:8px">Build a chat app in 5 minutes</h1>
-        <p style="max-width:600px">Get up and running with infer0 using the OpenAI SDK. All requests use the OpenAI Chat Completions format. infer0 translates behind the scenes.</p>
+        <p style="max-width:600px">Get up and running with infer0. Pick the API format that fits your stack — OpenAI Chat Completions, Anthropic Messages, or OpenAI Responses. infer0 translates behind the scenes.</p>
 
         <section>
           <h2>Prerequisites</h2>

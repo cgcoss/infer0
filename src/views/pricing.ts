@@ -30,7 +30,7 @@ export function PricingView({ user }: PricingViewProps) {
 
         <div style="margin-top:48px;padding:24px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem;color:var(--text-muted);line-height:1.8">
           <strong style="color:var(--text);display:block;margin-bottom:8px;font-family:var(--font-display);font-weight:700">Whats included</strong>
-          All features are available now: connect any provider (OpenAI, Anthropic, Google), use the OpenAI SDK format, set daily spend limits, manage per-app authorizations, and pause or revoke access at any time. We will announce pricing before any charges take effect.
+          All features are available now: connect any provider (OpenAI, Anthropic, Google), use any supported API format, set daily spend limits, manage per-app authorizations, and pause or revoke access at any time. We will announce pricing before any charges take effect.
         </div>
       </div>
     `,

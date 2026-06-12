@@ -18,8 +18,9 @@ export function HomeView({ user }: HomeViewProps) {
           </div>
           <p>
             infer0 lets end users connect their AI provider keys and authorize
-            apps to use them. Developers integrate once in OpenAI format and
-            infer0 routes to whichever provider each user chooses.
+            apps to use them. Developers integrate once using the API format
+            that fits their stack. infer0 routes to whichever provider each
+            user chooses without changing a line of code.
           </p>
           <div style="margin:28px auto;max-width:420px;text-align:left;font-size:0.875rem;line-height:2.2">
             <div style="display:flex;gap:10px;align-items:center"><span style="color:var(--accent);font-family:var(--font-display);font-weight:700">01</span> Connect AI providers. Set daily spend limits.</div>
@@ -40,7 +41,7 @@ export function HomeView({ user }: HomeViewProps) {
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">1</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">Developers register apps</h3>
-                <p style="margin:0;font-size:0.875rem">Create an OAuth app in Developer Settings to get a client ID and secret. Add the infer0 OAuth flow to your app. Use the OpenAI SDK. infer0 translates responses from any provider into OpenAI format automatically.</p>
+                <p style="margin:0;font-size:0.875rem">Create an OAuth app in Developer Settings to get a client ID and secret. Add the infer0 OAuth flow to your app. Use any supported API format — infer0 translates between providers automatically.</p>
               </div>
             </div>
             <div style="display:flex;gap:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
@@ -61,7 +62,7 @@ export function HomeView({ user }: HomeViewProps) {
               <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.2);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:0.875rem">4</div>
               <div>
                 <h3 style="font-size:1rem;font-weight:600;margin-bottom:4px">Apps route through infer0</h3>
-                <p style="margin:0;font-size:0.875rem">Your app passes the user's access token to <code>/v1/chat/completions</code> using the OpenAI SDK. infer0 looks up their AI Provider, checks spend limits, forwards the request, translates the response, and returns it in OpenAI format.</p>
+                <p style="margin:0;font-size:0.875rem">Your app passes the user's access token to the endpoint that matches your SDK. infer0 looks up their AI Provider, checks spend limits, forwards the request, and translates the response back into the format your SDK expects.</p>
               </div>
             </div>
           </div>
@@ -72,8 +73,8 @@ export function HomeView({ user }: HomeViewProps) {
           <div class="grid">
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">//</div>
-              <h3>OpenAI Chat format</h3>
-              <p>Use the OpenAI SDK your codebase already has. infer0 translates responses from any provider into OpenAI format. No provider-specific routing logic needed.</p>
+              <h3>Use whatever format fits</h3>
+              <p>Use the OpenAI or Anthropic SDK your codebase already has. infer0 supports Chat Completions, Messages, and Responses formats. No provider-specific routing logic needed.</p>
             </div>
             <div class="card">
               <div style="font-size:1.5rem;margin-bottom:12px;font-family:var(--font-display);color:var(--accent);font-weight:700">/**</div>

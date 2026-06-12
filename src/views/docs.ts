@@ -75,11 +75,11 @@ grant_type=authorization_code&code=&lt;code&gt;&client_id=&lt;client_id&gt;&clie
         <section>
           <h2>4. Inference</h2>
 
-          <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Send your request in OpenAI Chat Completions format. infer0 translates the response from the upstream provider back to OpenAI format, regardless of which provider handles it.</p>
+          <p>Use the access token to call infer0's API. infer0 routes the request to the user's configured provider and model automatically. Send your request in Chat Completions, Messages, or Responses format — whichever matches your SDK. infer0 translates the response from the upstream provider back to the format you sent, regardless of which provider handles it.</p>
 
           <div class="endpoint">
             <h3><span class="method post">POST</span><span class="path">/v1/chat/completions</span></h3>
-            <p style="margin:0 0 12px 0">OpenAI Chat Completions format.</p>
+            <p style="margin:0 0 12px 0">Chat Completions format (OpenAI SDK).</p>
 
             <pre><code class="language-http">POST https://infer0.com/v1/chat/completions
 Authorization: Bearer &lt;access_token&gt;
@@ -161,12 +161,11 @@ const chat = await client.chat.completions.create({
         <section>
           <h2>6. How model selection works</h2>
 
-          <p>Your app always uses the OpenAI Chat Completions format. The <code>model</code> field value you send is ignored. The actual model is determined by each user's provider configuration, not by your app.</p>
+          <p>The <code>model</code> field value you send is ignored. The actual model is determined by each user's provider configuration, not by your app.</p>
 
           <h3 style="font-size:1rem;font-weight:600;margin-bottom:8px">Requested vs actual model</h3>
 
-          <pre><code class="language-plaintext">// Your app always sends the same request:
-POST /v1/chat/completions
+          <pre><code class="language-plaintext">// Your app always sends the same request body:
 { "model": "ignored", "messages": [...] }
 
 // User A has OpenAI / gpt-4o-mini
